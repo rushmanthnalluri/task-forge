@@ -44,7 +44,7 @@ void future_release(taskforge_future_t* future) {
 bool future_mark_running(taskforge_future_t* future) {
     if (!future) return false;
     pthread_mutex_lock(&future->mutex);
-    if (future->state == TASKFORGE_FUTURE_CANCELLED) {
+    if (future->state != TASKFORGE_FUTURE_PENDING) {
         pthread_mutex_unlock(&future->mutex);
         return false;
     }

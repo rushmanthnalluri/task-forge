@@ -42,14 +42,15 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
         return NULL;
     }
 
-    char* line = strtok(copy, "\r\n");
+    char* saveptr = NULL;
+    char* line = strtok_r(copy, "\r\n", &saveptr);
     uint64_t auto_id = 1;
 
     while (line) {
         /* Trim leading whitespace */
         while (isspace((unsigned char)*line)) line++;
         if (*line == '\0' || *line == '#') {
-            line = strtok(NULL, "\r\n");
+            line = strtok_r(NULL, "\r\n", &saveptr);
             continue;
         }
 
@@ -105,7 +106,7 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
             }
         }
 
-        line = strtok(NULL, "\r\n");
+        line = strtok_r(NULL, "\r\n", &saveptr);
     }
 
     free(copy);
@@ -119,6 +120,10 @@ workload_spec_t* workload_spec_parse_file(const char* filepath) {
 
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
+    if (sz < 0) {
+        fclose(f);
+        return NULL;
+    }
     fseek(f, 0, SEEK_SET);
 
     char* buf = (char*)malloc(sz + 1);
@@ -147,15 +152,24 @@ int workload_spec_execute(taskforge_pool_t* pool, const workload_spec_t* spec, b
 
     taskforge_future_t** futures = NULL;
     if (wait_for_all) {
-        futures = (taskforge_future_t**)malloc(sizeof(taskforge_future_t*) * spec->count);
+        futures = (taskforge_future_t**)calloc(spec->count, sizeof(taskforge_future_t*));
+        if (!futures) return -1;
     }
 
     for (size_t i = 0; i < spec->count; i++) {
         workload_task_desc_t* item = (workload_task_desc_t*)malloc(sizeof(workload_task_desc_t));
+        if (!item) {
+            if (wait_for_all && futures) futures[i] = NULL;
+            continue;
+        }
         *item = spec->tasks[i];
 
         taskforge_future_t* fut = taskforge_submit_prio(pool, execute_parsed_task, item, item->prio);
-        if (wait_for_all) {
+        if (!fut) {
+            free(item);
+        }
+
+        if (wait_for_all && futures) {
             futures[i] = fut;
         } else if (fut) {
             taskforge_future_release(fut);

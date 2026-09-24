@@ -128,6 +128,12 @@ int main(int argc, char** argv) {
 
             void** items = (void**)malloc(sizeof(void*) * count);
             void** results = (void**)malloc(sizeof(void*) * count);
+            if (!items || !results) {
+                printf("[Error] Memory allocation failed for map.\n");
+                free(items);
+                free(results);
+                continue;
+            }
             for (size_t i = 0; i < count; i++) items[i] = (void*)(intptr_t)(i + 1);
 
             printf("[Map] Processing %zu items in parallel...\n", count);
@@ -167,6 +173,10 @@ int main(int argc, char** argv) {
             clock_gettime(CLOCK_MONOTONIC, &t0);
 
             taskforge_future_t** futs = (taskforge_future_t**)malloc(sizeof(taskforge_future_t*) * tasks);
+            if (!futs) {
+                printf("[Error] Memory allocation failed for benchmark.\n");
+                continue;
+            }
             for (size_t i = 0; i < tasks; i++) {
                 futs[i] = taskforge_submit(g_pool, dummy_work, (void*)(intptr_t)i);
             }

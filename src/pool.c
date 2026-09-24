@@ -14,6 +14,7 @@ typedef struct {
     pthread_t thread;
     taskforge_pool_t* pool;
     ws_deque_t deque;
+    unsigned int rng_seed;
 } worker_thread_t;
 
 struct taskforge_pool {
@@ -93,7 +94,7 @@ static void* worker_loop(void* arg) {
             else {
                 size_t num = pool->config.num_workers;
                 if (num > 1) {
-                    size_t start_victim = (size_t)rand() % num;
+                    size_t start_victim = (size_t)rand_r(&self->rng_seed) % num;
                     for (size_t i = 0; i < num; i++) {
                         size_t victim_idx = (start_victim + i) % num;
                         if (victim_idx == self->id) continue;
@@ -206,6 +207,7 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
     for (size_t i = 0; i < cfg.num_workers; i++) {
         pool->workers[i].id = i;
         pool->workers[i].pool = pool;
+        pool->workers[i].rng_seed = (unsigned int)(time(NULL) ^ (uintptr_t)&pool->workers[i] ^ ((i + 1) * 7919));
         if (cfg.enable_work_stealing) {
             ws_deque_init(&pool->workers[i].deque, (cfg.queue_capacity / cfg.num_workers) + 64);
         }
@@ -373,7 +375,13 @@ taskforge_pool_stats_t taskforge_pool_get_stats(taskforge_pool_t* pool) {
 
     stats.num_workers = pool->config.num_workers;
     stats.active_workers = atomic_load(&pool->active_workers);
-    stats.queued_tasks = queue_size(pool->queue);
+    size_t queued = queue_size(pool->queue);
+    if (pool->config.enable_work_stealing && pool->workers) {
+        for (size_t i = 0; i < pool->config.num_workers; i++) {
+            queued += ws_deque_size(&pool->workers[i].deque);
+        }
+    }
+    stats.queued_tasks = queued;
     stats.completed_tasks = atomic_load(&pool->completed_tasks);
     stats.rejected_tasks = atomic_load(&pool->rejected_tasks);
     stats.stolen_tasks = atomic_load(&pool->stolen_tasks);

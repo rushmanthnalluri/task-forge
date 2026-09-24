@@ -63,6 +63,8 @@ bool ws_deque_pop_bottom(ws_deque_t* deque, taskforge_task_t* out_task) {
 
     pthread_mutex_lock(&deque->mutex);
     if (deque->count == 0) {
+        deque->top = 0;
+        deque->bottom = 0;
         pthread_mutex_unlock(&deque->mutex);
         return false;
     }
@@ -71,6 +73,10 @@ bool ws_deque_pop_bottom(ws_deque_t* deque, taskforge_task_t* out_task) {
     deque->bottom = (deque->bottom + deque->capacity - 1) % deque->capacity;
     *out_task = deque->buffer[deque->bottom];
     deque->count--;
+    if (deque->count == 0) {
+        deque->top = 0;
+        deque->bottom = 0;
+    }
 
     pthread_mutex_unlock(&deque->mutex);
     return true;
@@ -85,6 +91,8 @@ bool ws_deque_steal_top(ws_deque_t* deque, taskforge_task_t* out_task) {
     }
 
     if (deque->count == 0) {
+        deque->top = 0;
+        deque->bottom = 0;
         pthread_mutex_unlock(&deque->mutex);
         return false;
     }
@@ -93,6 +101,10 @@ bool ws_deque_steal_top(ws_deque_t* deque, taskforge_task_t* out_task) {
     *out_task = deque->buffer[deque->top];
     deque->top = (deque->top + 1) % deque->capacity;
     deque->count--;
+    if (deque->count == 0) {
+        deque->top = 0;
+        deque->bottom = 0;
+    }
 
     pthread_mutex_unlock(&deque->mutex);
     return true;
