@@ -1,0 +1,9 @@
+build/
+bin/
+*.o
+*.a
+*.so
+*.log
+docs/scaling_curve.png
+benchmarks/scaling_results.csv
+__pycache__/
