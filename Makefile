@@ -31,6 +31,17 @@ all: directories $(LIB_STATIC) $(LIB_SHARED) $(CLI_BIN) $(TEST_BINS) $(BENCH_BIN
 directories:
 	@mkdir -p $(BUILD_DIR) $(BIN_DIR)
 
+help:
+	@echo "TaskForge Build Targets:"
+	@echo "  make all          - Build libraries, CLI, test suite, and benchmarks"
+	@echo "  make test         - Run full test battery (correctness, contention, shutdown)"
+	@echo "  make test-million - Run 1,000,000 tasks soak test"
+	@echo "  make bench        - Run scalability and work-stealing benchmarks"
+	@echo "  make asan         - Run tests under AddressSanitizer"
+	@echo "  make tsan         - Run tests under ThreadSanitizer"
+	@echo "  make valgrind     - Run Valgrind leak checker"
+	@echo "  make clean        - Remove build artifacts and logs"
+
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -fPIC -c $< -o $@
 

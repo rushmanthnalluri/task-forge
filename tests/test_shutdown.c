@@ -48,6 +48,23 @@ int main(void) {
     printf("  [PASS] Graceful drain completed all %d tasks before worker teardown.\n", completed);
 
     taskforge_pool_destroy(pool);
+    printf("  [PASS] Graceful shutdown and pool destruction clean.\n");
+
+    /* 2. Test immediate shutdown */
+    printf("  [Step] Testing immediate shutdown...\n");
+    taskforge_pool_t* pool_imm = taskforge_pool_create(&cfg);
+    assert(pool_imm != NULL);
+
+    for (int i = 0; i < 20; i++) {
+        taskforge_future_t* fut = taskforge_submit(pool_imm, counting_task, NULL);
+        if (fut) taskforge_future_release(fut);
+    }
+
+    rc = taskforge_pool_shutdown(pool_imm, false);
+    assert(rc == TASKFORGE_OK);
+    taskforge_pool_destroy(pool_imm);
+    printf("  [PASS] Immediate shutdown terminated cleanly.\n");
+
     printf("[PASS] test_shutdown completed successfully!\n\n");
     return 0;
 }

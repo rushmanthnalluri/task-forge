@@ -91,11 +91,13 @@ int main(int argc, char** argv) {
     struct timespec start_time, end_time;
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
+    uint64_t current_val = 1;
     for (int i = 0; i < NUM_PRODUCERS; i++) {
         args[i].pool = pool;
         args[i].producer_id = i;
-        args[i].start_val = (uint64_t)i * per_producer + 1;
-        args[i].count = per_producer;
+        args[i].start_val = current_val;
+        args[i].count = (i == NUM_PRODUCERS - 1) ? (total_tasks - current_val + 1) : per_producer;
+        current_val += args[i].count;
         pthread_create(&producers[i], NULL, producer_thread, &args[i]);
     }
 

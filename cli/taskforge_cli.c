@@ -15,6 +15,22 @@ static void sigint_handler(int sig) {
     g_interrupted = 1;
 }
 
+typedef struct {
+    int sleep_ms;
+    int val;
+} cli_task_arg_t;
+
+static void* cli_task_work(void* arg) {
+    cli_task_arg_t* t = (cli_task_arg_t*)arg;
+    if (t->sleep_ms > 0) {
+        usleep(t->sleep_ms * 1000);
+    }
+    for (volatile int i = 0; i < 50000; i++);
+    intptr_t res = t->val * 2;
+    free(t);
+    return (void*)res;
+}
+
 static void* dummy_work(void* arg) {
     intptr_t val = (intptr_t)arg;
     for (volatile int i = 0; i < 100000; i++);
@@ -85,7 +101,7 @@ int main(int argc, char** argv) {
         if (strlen(line) == 0) continue;
 
         char cmd[32] = {0};
-        sscanf(line, "%31s", cmd);
+        if (sscanf(line, "%31s", cmd) != 1) continue;
 
         if (strcmp(cmd, "help") == 0) {
             print_help();
@@ -107,8 +123,17 @@ int main(int argc, char** argv) {
             if (strcasecmp(prio_str, "high") == 0) p = TASKFORGE_PRIO_HIGH;
             else if (strcasecmp(prio_str, "low") == 0) p = TASKFORGE_PRIO_LOW;
 
-            taskforge_future_t* fut = taskforge_submit_prio(g_pool, dummy_work, (void*)(intptr_t)val, p);
+            cli_task_arg_t* t_arg = (cli_task_arg_t*)malloc(sizeof(cli_task_arg_t));
+            if (!t_arg) {
+                printf("[Error] Memory allocation failed\n");
+                continue;
+            }
+            t_arg->sleep_ms = sleep_ms;
+            t_arg->val = val;
+
+            taskforge_future_t* fut = taskforge_submit_prio(g_pool, cli_task_work, t_arg, p);
             if (!fut) {
+                free(t_arg);
                 printf("[Error] Submission rejected\n");
             } else {
                 printf("[Submitted] Waiting for future...\n");
