@@ -99,6 +99,8 @@ asan: clean all
 	@./$(BIN_DIR)/test_priorities
 	@./$(BIN_DIR)/test_work_stealing
 	@./$(BIN_DIR)/test_map
+	@./$(BIN_DIR)/test_parser
+	@./$(BIN_DIR)/test_logging
 	@./$(BIN_DIR)/test_stress
 
 tsan: CFLAGS += -fsanitize=thread -g -O1
