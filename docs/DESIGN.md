@@ -91,7 +91,7 @@ A critical concurrency bug in thread pools is race conditions during future recl
 * When the worker completes execution, it calls `future_complete()`, sets the result, broadcasts `future->cond`, and drops Reference 2 via `future_release()`.
 * When the caller finishes inspecting or waiting on the future, it drops Reference 1 via `taskforge_future_release()`.
 * The party that decrements `ref_count` to zero is solely responsible for destroying `pthread_mutex_t`, `pthread_cond_t`, and executing `free(future)`.
-* This mathematical invariant guarantees **zero use-after-free**, **zero race conditions**, and **zero memory leaks**, verified clean under both AddressSanitizer and Valgrind.
+* This invariant prevents the worker-owned future from being reclaimed while the task is still executing. Sanitizer and leak results are environment-specific and should be reported from the run where they were executed.
 
 ---
 
@@ -119,9 +119,7 @@ TaskForge provides two explicit shutdown semantics:
 2. **Immediate Shutdown (`taskforge_pool_shutdown(pool, false)`)**:
    - Flips `queue->shutdown = true`.
    - Broadcasts to all condition variables (`not_empty`, `not_full`).
-   - Workers immediately cease processing.
-   - Remaining unexecuted tasks in the queue have their futures marked as `TASKFORGE_FUTURE_FAILED` with error code `TASKFORGE_ERR_SHUTDOWN` and waiters are awakened.
-   - Worker threads are joined and destroyed.
+   - Workers stop taking new work. Tasks already executing are allowed to finish their current function. Remaining tasks in the global queue are marked `TASKFORGE_FUTURE_FAILED` with `TASKFORGE_ERR_SHUTDOWN`; tasks remaining in worker-local deques are failed rather than executed. Worker threads are then joined.
 
 ---
 
@@ -131,3 +129,8 @@ When consumers cannot keep up with producers, TaskForge provides 3 distinct subm
 1. `taskforge_submit()`: Blocks producer thread on `not_full` until queue space opens up.
 2. `taskforge_try_submit()`: Returns immediately with `NULL` (and increments `rejected_tasks` counter) if queue is full.
 3. `taskforge_submit_timeout()`: Blocks on `not_full` for up to `timeout_ms` milliseconds using `pthread_cond_timedwait`. If no slot opens within the deadline, returns `NULL`.
+
+
+## 7. Verification Scope
+
+The repository tests distinguish implementation checks from environment-specific sanitizer and benchmark runs. Work-stealing tests verify deque ordering; priority tests verify starvation avoidance; shutdown tests verify graceful draining and immediate failure of queued work. Benchmark values are regenerated per host rather than treated as universal performance guarantees.
