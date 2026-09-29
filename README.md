@@ -228,3 +228,8 @@ int main(void) {
     return 0;
 }
 ```
+
+
+## Verification Notes
+
+Performance numbers are environment-dependent and must be regenerated on the target machine with `make bench`. Immediate shutdown stops accepting work, fails tasks still waiting in the global queue, prevents execution of work remaining in local deques, and allows a task already running to finish.
