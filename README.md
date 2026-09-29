@@ -16,7 +16,7 @@ Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
   * Dynamic load tracking: active workers, queued tasks, completed tasks, stolen tasks, and rejected tasks.
 * **Composable Futures & Dual Reference Counting (`taskforge_future_t`)**:
   * Thread-safe completion channel with result slot (`void*`), error code, mutex, and condition variable.
-  * Dual reference-counting invariant (Caller + Worker) guaranteeing **zero leaks**, **zero double frees**, and **zero use-after-free** even if caller waits, detaches, or releases early.
+  * Dual reference-counting invariant (Caller + Worker) designed to prevent premature future reclamation while worker ownership is still active.
   * Timed waits (`taskforge_future_wait_timeout`) and queued task cancellation (`taskforge_future_cancel`).
 * **Distinction Feature: Per-Worker Work-Stealing Deques**:
   * Each worker owns a double-ended queue (deque).
@@ -178,16 +178,16 @@ Pressing `Ctrl+C` (`SIGINT`) triggers signal-safe graceful teardown, drains all 
 
 | Specification Requirement | Verification Target | Result | Status |
 |:---|:---|:---:|:---:|
-| **1 Million Tasks Soak Test** | `make test-million` | **1,000,000 / 1,000,000 verified correct (812k tasks/s)** | **PASSED** |
+| **1 Million Tasks Soak Test** | `make test-million` | 1,000,000-task correctness/throughput soak test | **PASSED** |
 | **Bounded Queue Blocking** | `test_bounded_queue` | Bounded capacity blocks producers; `TASKFORGE_ERR_FULL` / timeout | **PASSED** |
 | **Future Protocol & Wait** | `test_futures` | Timed wait expires on slow tasks; normal wait retrieves results | **PASSED** |
 | **Task Cancellation** | `test_futures` | Queued tasks cancel cleanly; workers skip; waiters get `ERR_CANCELLED` | **PASSED** |
 | **Graceful Shutdown Drain** | `test_shutdown` | 100% in-flight tasks drain; new submissions rejected; 0 leaked | **PASSED** |
-| **Zero Data Races (TSan)** | `make tsan` | 0 data races, 0 warnings across all concurrency tests | **PASSED** |
-| **Zero Memory Leaks (Valgrind)**| `make valgrind` | 0 bytes leaked, 0 errors across entire heap lifecycle | **PASSED** |
-| **ASan / UBSan Clean** | `make asan` | 0 buffer overflows, 0 use-after-free, 0 undefined behavior | **PASSED** |
-| **Distinction: Work-Stealing** | `bench_stealing_vs_global` | Stealing yields **+19.5% throughput gain** under multi-core load | **PASSED** |
-| **Scaling & Contention Curve** | `bench_scaling` | Contention ceiling identified; CSV & visual plot generated | **PASSED** |
+| **Zero Data Races (TSan)** | `make tsan` | Runs the full test suite under TSan when supported by the host | **PASSED** |
+| **Zero Memory Leaks (Valgrind)**| `make valgrind` | Runs every test binary under Memcheck | **PASSED** |
+| **ASan / UBSan Clean** | `make asan` | Runs the concurrency test suite under sanitizers | **PASSED** |
+| **Distinction: Work-Stealing** | `bench_stealing_vs_global` | Measures global-queue vs work-stealing throughput on the current host | **PASSED** |
+| **Scaling & Contention Curve** | `bench_scaling` | Generates host-specific CSV measurements and scaling data | **PASSED** |
 
 ---
 
