@@ -276,3 +276,19 @@ size_t queue_size(taskforge_queue_t* q) {
 bool queue_is_empty(taskforge_queue_t* q) {
     return queue_size(q) == 0;
 }
+
+bool queue_is_shutdown(taskforge_queue_t* q) {
+    if (!q) return true;
+    pthread_mutex_lock(&q->mutex);
+    bool value = q->shutdown;
+    pthread_mutex_unlock(&q->mutex);
+    return value;
+}
+
+bool queue_is_draining(taskforge_queue_t* q) {
+    if (!q) return false;
+    pthread_mutex_lock(&q->mutex);
+    bool value = q->draining;
+    pthread_mutex_unlock(&q->mutex);
+    return value;
+}
