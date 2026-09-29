@@ -14,6 +14,13 @@ static void* counting_task(void* arg) {
     return NULL;
 }
 
+static void* immediate_blocker(void* arg) {
+    (void)arg;
+    usleep(200000);
+    atomic_fetch_add(&g_executed_tasks, 1);
+    return NULL;
+}
+
 int main(void) {
     printf("[TEST] Running test_shutdown...\n");
 
