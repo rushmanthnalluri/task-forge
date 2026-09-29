@@ -71,12 +71,17 @@ int main(void) {
     }
     printf("\n");
 
-    /* Verify HIGH tasks (200 series) were executed first */
+    /* Verify HIGH tasks are prioritized, while starvation avoidance yields to LOW. */
     assert(g_exec_order[0] >= 201 && g_exec_order[0] <= 205);
     assert(g_exec_order[1] >= 201 && g_exec_order[1] <= 205);
+    size_t first_low = g_order_count;
+    for (size_t i = 0; i < g_order_count; i++) {
+        if (g_exec_order[i] >= 101 && g_exec_order[i] <= 105) { first_low = i; break; }
+    }
+    assert(first_low <= 5);
     pthread_mutex_unlock(&g_log_mutex);
 
-    printf("  [PASS] High-priority tasks were dispatched ahead of Low-priority tasks.\n");
+    printf("  [PASS] High-priority dispatch and starvation avoidance were verified.\n");
 
     taskforge_pool_destroy(pool);
     printf("[PASS] test_priorities completed successfully!\n\n");
