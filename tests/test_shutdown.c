@@ -64,15 +64,30 @@ int main(void) {
     taskforge_pool_t* pool_imm = taskforge_pool_create(&imm_cfg);
     assert(pool_imm != NULL);
 
+    taskforge_future_t* blocker_imm = taskforge_submit(pool_imm, immediate_blocker, NULL);
+    assert(blocker_imm != NULL);
+    usleep(20000);
+
+    taskforge_future_t* queued[20];
     for (int i = 0; i < 20; i++) {
-        taskforge_future_t* fut = taskforge_submit(pool_imm, counting_task, NULL);
-        if (fut) taskforge_future_release(fut);
+        queued[i] = taskforge_submit(pool_imm, counting_task, NULL);
+        assert(queued[i] != NULL);
     }
 
     rc = taskforge_pool_shutdown(pool_imm, false);
     assert(rc == TASKFORGE_OK);
+
+    for (int i = 0; i < 20; i++) {
+        assert(taskforge_future_get_state(queued[i]) == TASKFORGE_FUTURE_FAILED);
+        assert(taskforge_future_wait(queued[i], NULL) == TASKFORGE_ERR_FAILED);
+        assert(taskforge_future_get_error(queued[i]) == TASKFORGE_ERR_SHUTDOWN);
+        taskforge_future_release(queued[i]);
+    }
+    assert(taskforge_future_wait(blocker_imm, NULL) == TASKFORGE_OK);
+    taskforge_future_release(blocker_imm);
+
     taskforge_pool_destroy(pool_imm);
-    printf("  [PASS] Immediate shutdown terminated cleanly.\n");
+    printf("  [PASS] Immediate shutdown failed queued work and preserved the task already running.\n");
 
     printf("[PASS] test_shutdown completed successfully!\n\n");
     return 0;
