@@ -83,6 +83,7 @@ taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool, taskforge_task_
 taskforge_status_t taskforge_future_wait(taskforge_future_t* future, void** out_result);
 taskforge_status_t taskforge_future_wait_timeout(taskforge_future_t* future, uint32_t timeout_ms, void** out_result);
 taskforge_future_state_t taskforge_future_get_state(taskforge_future_t* future);
+int taskforge_future_get_error(taskforge_future_t* future);
 bool taskforge_future_cancel(taskforge_future_t* future);
 void taskforge_future_release(taskforge_future_t* future);
 
