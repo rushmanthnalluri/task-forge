@@ -259,6 +259,21 @@ void queue_signal_shutdown(taskforge_queue_t* q, bool graceful) {
         q->draining = true;
     } else {
         q->shutdown = true;
+
+        /* Immediate shutdown fails work still waiting in the global queue. */
+        size_t num_rings = q->enable_priority ? TASKFORGE_PRIO_COUNT : 1;
+        for (size_t i = 0; i < num_rings; i++) {
+            ring_buffer_t* ring = &q->ring[i];
+            while (ring->count > 0) {
+                taskforge_task_t task;
+                ring_pop_internal(ring, &task);
+                if (task.future) {
+                    future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
+                }
+            }
+        }
+        q->total_count = 0;
+        q->high_prio_streak = 0;
     }
     pthread_cond_broadcast(&q->not_empty);
     pthread_cond_broadcast(&q->not_full);
