@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include "taskforge/taskforge.h"
+#include "taskforge/work_stealing.h"
 
 static void* compute_task(void* arg) {
     intptr_t v = (intptr_t)arg;
@@ -12,6 +13,29 @@ static void* compute_task(void* arg) {
 
 int main(void) {
     printf("[TEST] Running test_work_stealing...\n");
+
+    /* Deterministically verify the deque protocol: owner is LIFO, stealer is FIFO. */
+    ws_deque_t deque;
+    assert(ws_deque_init(&deque, 8));
+    taskforge_task_t a = { .task_id = 1, .fn = compute_task, .arg = (void*)(intptr_t)1,
+                           .future = NULL, .prio = TASKFORGE_PRIO_NORMAL };
+    taskforge_task_t b = { .task_id = 2, .fn = compute_task, .arg = (void*)(intptr_t)2,
+                           .future = NULL, .prio = TASKFORGE_PRIO_NORMAL };
+    taskforge_task_t c = { .task_id = 3, .fn = compute_task, .arg = (void*)(intptr_t)3,
+                           .future = NULL, .prio = TASKFORGE_PRIO_NORMAL };
+    assert(ws_deque_push_bottom(&deque, &a));
+    assert(ws_deque_push_bottom(&deque, &b));
+    assert(ws_deque_push_bottom(&deque, &c));
+
+    taskforge_task_t stolen;
+    assert(ws_deque_steal_top(&deque, &stolen));
+    assert(stolen.task_id == 1);
+
+    taskforge_task_t owned;
+    assert(ws_deque_pop_bottom(&deque, &owned));
+    assert(owned.task_id == 3);
+    ws_deque_destroy(&deque);
+    printf("  [PASS] Deque owner/stealer ordering verified (LIFO/FIFO).\n");
 
     taskforge_pool_config_t cfg;
     taskforge_default_config(&cfg);
