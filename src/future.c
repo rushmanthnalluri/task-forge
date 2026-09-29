@@ -138,6 +138,14 @@ taskforge_status_t taskforge_future_wait_timeout(taskforge_future_t* future, uin
     return status;
 }
 
+int taskforge_future_get_error(taskforge_future_t* future) {
+    if (!future) return TASKFORGE_ERR_INVALID;
+    pthread_mutex_lock(&future->mutex);
+    int error_code = future->error_code;
+    pthread_mutex_unlock(&future->mutex);
+    return error_code;
+}
+
 taskforge_future_state_t taskforge_future_get_state(taskforge_future_t* future) {
     if (!future) return TASKFORGE_FUTURE_FAILED;
     pthread_mutex_lock(&future->mutex);
