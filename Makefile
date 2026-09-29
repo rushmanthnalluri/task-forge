@@ -24,7 +24,7 @@ BENCH_BINS = $(patsubst $(BENCH_DIR)/%.c, $(BIN_DIR)/%, $(BENCH_SRCS))
 
 CLI_BIN = $(BIN_DIR)/taskforge_cli
 
-.PHONY: all clean test bench valgrind tsan asan directories help
+.PHONY: all clean test test-million bench valgrind tsan asan directories help
 
 all: directories $(LIB_STATIC) $(LIB_SHARED) $(CLI_BIN) $(TEST_BINS) $(BENCH_BINS)
 
@@ -70,6 +70,8 @@ test: all
 	@./$(BIN_DIR)/test_priorities
 	@./$(BIN_DIR)/test_work_stealing
 	@./$(BIN_DIR)/test_map
+	@./$(BIN_DIR)/test_parser
+	@./$(BIN_DIR)/test_logging
 	@./$(BIN_DIR)/test_stress
 	@./$(BIN_DIR)/test_million_soak 200000
 	@echo "=========================================="
@@ -110,6 +112,8 @@ tsan: clean all
 	@./$(BIN_DIR)/test_priorities
 	@./$(BIN_DIR)/test_work_stealing
 	@./$(BIN_DIR)/test_map
+	@./$(BIN_DIR)/test_parser
+	@./$(BIN_DIR)/test_logging
 	@./$(BIN_DIR)/test_stress
 
 valgrind: all
