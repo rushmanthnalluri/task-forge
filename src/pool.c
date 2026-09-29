@@ -31,7 +31,10 @@ struct taskforge_pool {
 
     atomic_bool shutdown_started;
     atomic_bool shutdown_complete;
+    atomic_bool immediate_shutdown;
     atomic_size_t rr_worker_idx;
+    pthread_mutex_t shutdown_mutex;
+    pthread_cond_t shutdown_cond;
 };
 
 void taskforge_default_config(taskforge_pool_config_t* config) {
@@ -81,6 +84,8 @@ static void* worker_loop(void* arg) {
     taskforge_pool_t* pool = self->pool;
 
     while (1) {
+        if (atomic_load(&pool->immediate_shutdown)) break;
+
         taskforge_task_t task;
         memset(&task, 0, sizeof(task));
         bool found_task = false;
@@ -145,6 +150,11 @@ static void* worker_loop(void* arg) {
 
         if (!found_task) break;
 
+        if (atomic_load(&pool->immediate_shutdown)) {
+            future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
+            continue;
+        }
+
         execute_task_item(self, &task);
     }
 
@@ -152,7 +162,11 @@ static void* worker_loop(void* arg) {
     if (pool->config.enable_work_stealing) {
         taskforge_task_t leftover;
         while (ws_deque_pop_bottom(&self->deque, &leftover)) {
-            execute_task_item(self, &leftover);
+            if (atomic_load(&pool->immediate_shutdown)) {
+                future_fail(leftover.future, TASKFORGE_ERR_SHUTDOWN);
+            } else {
+                execute_task_item(self, &leftover);
+            }
         }
     }
 
@@ -183,7 +197,14 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
     atomic_init(&pool->stolen_tasks, 0);
     atomic_init(&pool->shutdown_started, false);
     atomic_init(&pool->shutdown_complete, false);
+    atomic_init(&pool->immediate_shutdown, false);
     atomic_init(&pool->rr_worker_idx, 0);
+    if (pthread_mutex_init(&pool->shutdown_mutex, NULL) != 0) { free(pool); return NULL; }
+    if (pthread_cond_init(&pool->shutdown_cond, NULL) != 0) {
+        pthread_mutex_destroy(&pool->shutdown_mutex);
+        free(pool);
+        return NULL;
+    }
 
     if (cfg.log_file_path) {
         pool->logger = taskforge_logger_create(cfg.log_file_path);
@@ -192,6 +213,8 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
     pool->queue = queue_create(cfg.queue_capacity, cfg.enable_priority);
     if (!pool->queue) {
         if (pool->logger) taskforge_logger_destroy(pool->logger);
+        pthread_cond_destroy(&pool->shutdown_cond);
+        pthread_mutex_destroy(&pool->shutdown_mutex);
         free(pool);
         return NULL;
     }
@@ -200,6 +223,8 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
     if (!pool->workers) {
         queue_destroy(pool->queue);
         if (pool->logger) taskforge_logger_destroy(pool->logger);
+        pthread_cond_destroy(&pool->shutdown_cond);
+        pthread_mutex_destroy(&pool->shutdown_mutex);
         free(pool);
         return NULL;
     }
@@ -330,18 +355,25 @@ int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
 
     bool expected = false;
     if (!atomic_compare_exchange_strong(&pool->shutdown_started, &expected, true)) {
-        return TASKFORGE_OK; /* Shutdown already initiated */
+        pthread_mutex_lock(&pool->shutdown_mutex);
+        while (!atomic_load(&pool->shutdown_complete)) {
+            pthread_cond_wait(&pool->shutdown_cond, &pool->shutdown_mutex);
+        }
+        pthread_mutex_unlock(&pool->shutdown_mutex);
+        return TASKFORGE_OK;
     }
 
-    /* Signal the queue */
+    if (!graceful) atomic_store(&pool->immediate_shutdown, true);
     queue_signal_shutdown(pool->queue, graceful);
 
-    /* Wait for all worker threads to finish and join */
     for (size_t i = 0; i < pool->config.num_workers; i++) {
         pthread_join(pool->workers[i].thread, NULL);
     }
 
+    pthread_mutex_lock(&pool->shutdown_mutex);
     atomic_store(&pool->shutdown_complete, true);
+    pthread_cond_broadcast(&pool->shutdown_cond);
+    pthread_mutex_unlock(&pool->shutdown_mutex);
     return TASKFORGE_OK;
 }
 
@@ -365,6 +397,8 @@ void taskforge_pool_destroy(taskforge_pool_t* pool) {
         taskforge_logger_destroy(pool->logger);
     }
 
+    pthread_cond_destroy(&pool->shutdown_cond);
+    pthread_mutex_destroy(&pool->shutdown_mutex);
     free(pool);
 }
 
