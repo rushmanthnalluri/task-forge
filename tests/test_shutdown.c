@@ -59,7 +59,9 @@ int main(void) {
 
     /* 2. Test immediate shutdown */
     printf("  [Step] Testing immediate shutdown...\n");
-    taskforge_pool_t* pool_imm = taskforge_pool_create(&cfg);
+    taskforge_pool_config_t imm_cfg = cfg;
+    imm_cfg.num_workers = 1;
+    taskforge_pool_t* pool_imm = taskforge_pool_create(&imm_cfg);
     assert(pool_imm != NULL);
 
     for (int i = 0; i < 20; i++) {
