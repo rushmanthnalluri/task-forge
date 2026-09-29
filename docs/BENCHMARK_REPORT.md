@@ -6,10 +6,10 @@
 
 This report documents the performance characteristics, parallel scalability, and contention behavior of **TaskForge** across varying worker thread counts and execution modes (Standard Bounded Queue vs. Work-Stealing Per-Worker Deques).
 
-* **Soak Test Reliability**: 1,000,000 tasks processed across 4 concurrent producers and 8 worker threads with **100% verified result accuracy**, achieving **812,804 tasks/second**.
-* **Memory Safety**: 100% clean under **Valgrind Memcheck** (0 bytes leaked, 0 errors).
-* **Concurrency Safety**: 100% race-free under **ThreadSanitizer (TSan)** and **AddressSanitizer (ASan/UBSan)** under heavy churn.
-* **Work-Stealing Advantage**: Delivers up to a **+19.5% throughput boost** under 4 workers by eliminating central mutex bottlenecks.
+* **Soak Test Reliability**: 1,000,000 tasks processed across 4 concurrent producers and 8 worker threads with **100% verified result accuracy**, with throughput recorded by the test output for the host used.
+* **Memory Safety**: covered by the repository's Valgrind Memcheck target; results are host/run-specific.
+* **Concurrency Safety**: covered by the repository's TSan and ASan/UBSan targets when those sanitizers are supported by the host.
+* **Work-Stealing Advantage**: can improve throughput under some multi-core workloads by reducing pressure on the central queue; exact gains are host- and workload-dependent.
 
 ---
 
@@ -46,3 +46,8 @@ Under heavy multi-core concurrency, work-stealing isolates workers into their ow
 
 ### Key Takeaway:
 At 4+ workers, work-stealing consistently outperforms the global queue by **11.7% to 19.5%**. Because workers push and pop from their private local deque in LIFO order without locking the global queue mutex, lock hold time is minimized and L1 cache locality is preserved.
+
+
+## Reproducibility
+
+The numbers in this document are illustrative measurements from a particular benchmark environment. The checked-in CSV may contain measurements from a different run. Use `make bench` to regenerate measurements on the same machine before comparing results.
