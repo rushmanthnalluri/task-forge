@@ -114,10 +114,7 @@ tsan: clean all
 
 valgrind: all
 	@echo "Running Valgrind Memory Verification..."
-	valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./$(BIN_DIR)/test_futures
-	valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./$(BIN_DIR)/test_shutdown
-	valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./$(BIN_DIR)/test_bounded_queue
-	valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./$(BIN_DIR)/test_map
+	for test in $(TEST_BINS); do valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 $test; done
 	@echo "VALGRIND LEAK-FREE VERIFICATION COMPLETE!"
 
 clean:
