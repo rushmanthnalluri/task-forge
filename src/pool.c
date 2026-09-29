@@ -145,6 +145,14 @@ static void* worker_loop(void* arg) {
 
         if (!found_task) break;
 
+        /* Immediate shutdown: let an already-running task finish, but never start
+         * work that was still queued or sitting in a local deque. */
+        if (queue_is_shutdown(pool->queue)) {
+            future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
+            atomic_fetch_add(&pool->completed_tasks, 1);
+            continue;
+        }
+
         execute_task_item(self, &task);
     }
 
@@ -152,7 +160,12 @@ static void* worker_loop(void* arg) {
     if (pool->config.enable_work_stealing) {
         taskforge_task_t leftover;
         while (ws_deque_pop_bottom(&self->deque, &leftover)) {
-            execute_task_item(self, &leftover);
+            if (queue_is_shutdown(pool->queue)) {
+                future_fail(leftover.future, TASKFORGE_ERR_SHUTDOWN);
+                atomic_fetch_add(&pool->completed_tasks, 1);
+            } else {
+                execute_task_item(self, &leftover);
+            }
         }
     }
 
