@@ -67,8 +67,15 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
                                         &tid, prio_str, &sleep_ms, &iters, &payload);
                 if (read_count >= 2) {
                     if (spec->count >= spec->capacity) {
-                        spec->capacity *= 2;
-                        spec->tasks = (workload_task_desc_t*)realloc(spec->tasks, sizeof(workload_task_desc_t) * spec->capacity);
+                        size_t new_capacity = spec->capacity * 2;
+                        workload_task_desc_t* resized = (workload_task_desc_t*)realloc(spec->tasks, sizeof(workload_task_desc_t) * new_capacity);
+                        if (!resized) {
+                            free(copy);
+                            workload_spec_destroy(spec);
+                            return NULL;
+                        }
+                        spec->tasks = resized;
+                        spec->capacity = new_capacity;
                     }
                     workload_task_desc_t* d = &spec->tasks[spec->count++];
                     d->task_id = (tid > 0) ? tid : auto_id++;
@@ -92,8 +99,15 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
                                                      (strcasecmp(prio_str, "LOW") == 0) ? TASKFORGE_PRIO_LOW : TASKFORGE_PRIO_NORMAL;
                     for (size_t r = 0; r < rep; r++) {
                         if (spec->count >= spec->capacity) {
-                            spec->capacity = (spec->capacity * 2) + rep;
-                            spec->tasks = (workload_task_desc_t*)realloc(spec->tasks, sizeof(workload_task_desc_t) * spec->capacity);
+                            size_t new_capacity = (spec->capacity * 2) + rep;
+                            workload_task_desc_t* resized = (workload_task_desc_t*)realloc(spec->tasks, sizeof(workload_task_desc_t) * new_capacity);
+                            if (!resized) {
+                                free(copy);
+                                workload_spec_destroy(spec);
+                                return NULL;
+                            }
+                            spec->tasks = resized;
+                            spec->capacity = new_capacity;
                         }
                         workload_task_desc_t* d = &spec->tasks[spec->count++];
                         d->task_id = auto_id++;
@@ -156,9 +170,11 @@ int workload_spec_execute(taskforge_pool_t* pool, const workload_spec_t* spec, b
         if (!futures) return -1;
     }
 
+    bool submission_failed = false;
     for (size_t i = 0; i < spec->count; i++) {
         workload_task_desc_t* item = (workload_task_desc_t*)malloc(sizeof(workload_task_desc_t));
         if (!item) {
+            submission_failed = true;
             if (wait_for_all && futures) futures[i] = NULL;
             continue;
         }
@@ -167,6 +183,7 @@ int workload_spec_execute(taskforge_pool_t* pool, const workload_spec_t* spec, b
         taskforge_future_t* fut = taskforge_submit_prio(pool, execute_parsed_task, item, item->prio);
         if (!fut) {
             free(item);
+            submission_failed = true;
         }
 
         if (wait_for_all && futures) {
@@ -187,5 +204,5 @@ int workload_spec_execute(taskforge_pool_t* pool, const workload_spec_t* spec, b
         free(futures);
     }
 
-    return 0;
+    return submission_failed ? -1 : 0;
 }
