@@ -62,5 +62,7 @@ bool queue_try_pop(taskforge_queue_t* queue, taskforge_task_t* out_task);
 void queue_signal_shutdown(taskforge_queue_t* queue, bool graceful);
 size_t queue_size(taskforge_queue_t* queue);
 bool queue_is_empty(taskforge_queue_t* queue);
+bool queue_is_shutdown(taskforge_queue_t* queue);
+bool queue_is_draining(taskforge_queue_t* queue);
 
 #endif /* TASKFORGE_QUEUE_H */
