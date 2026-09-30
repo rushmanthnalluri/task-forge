@@ -51,7 +51,7 @@ The queue is protected by a single POSIX mutex (`mutex`) and coordinated via two
   ```
   *Rationale*: POSIX allows spurious wakeups (`EINTR` or scheduler wakeups without explicit signal). Furthermore, under high multi-producer contention, another producer may claim the empty slot between signal delivery and mutex re-acquisition. A `while` loop guarantees correctness against lost and spurious wakeups.
 * **Capacity Invariant**: `0 <= queue->total_count <= queue->total_capacity` holds at all times while the mutex is held or released.
-* **FIFO & Priority Invariant**: Within a given priority tier, tasks are popped in the exact FIFO order of insertion via modular arithmetic `(head + 1) % capacity`. Across priority tiers, `HIGH` priority tasks are consumed before `NORMAL` and `LOW`, except when `high_prio_streak >= STARVATION_THRESHOLD (5)`, at which point a `NORMAL` or `LOW` task is yielded to prevent unbounded starvation.
+* **FIFO & Priority Behavior**: Within a given priority tier, tasks are popped in FIFO order. Across tiers, the global queue selects `HIGH` before `NORMAL` and `LOW`, except after the starvation threshold yields a lower tier. When work stealing is enabled, tasks already prefetched into local deques are independent of later global-queue priority arrivals.
 
 ---
 
@@ -113,7 +113,8 @@ TaskForge provides two explicit shutdown semantics:
    - Flips `queue->draining = true` and `pool->shutdown_started = true`.
    - All subsequent task submissions are rejected immediately with `NULL` / `TASKFORGE_ERR_SHUTDOWN`.
    - Workers continue popping until `queue->total_count == 0` and all local deques are empty.
-   - All worker threads are joined via `pthread_join()`.
+   - All created worker threads are joined via `pthread_join()`.
+   - Shutdown must be initiated by a non-worker caller.
    - Result: 100% of submitted tasks finish execution; no tasks are dropped.
 
 2. **Immediate Shutdown (`taskforge_pool_shutdown(pool, false)`)**:
@@ -134,3 +135,10 @@ When consumers cannot keep up with producers, TaskForge provides 3 distinct subm
 ## 7. Verification Scope
 
 The repository tests distinguish implementation checks from environment-specific sanitizer and benchmark runs. Work-stealing tests verify deque ordering; priority tests verify starvation avoidance; shutdown tests verify graceful draining and immediate failure of queued work. Benchmark values are regenerated per host rather than treated as universal performance guarantees.
+
+
+## 8. Failure-Path Contracts
+
+Pool creation treats logger and work-stealing deque initialization failures as fatal and cleans up every resource initialized before the failure. Partial worker creation is tracked separately from configured worker count so all successfully created threads and all initialized deques are reclaimed.
+
+Timed future and queue waits use condition variables configured for `CLOCK_MONOTONIC`, matching their monotonic deadlines. Workload parsing rejects malformed commands, unknown priorities, duplicate task IDs, and trailing tokens instead of silently accepting partial input.
