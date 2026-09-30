@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdint.h>
 #include "taskforge/taskforge.h"
 #include "taskforge/parser.h"
 
@@ -73,7 +74,13 @@ int main(int argc, char** argv) {
     config.log_file_path = "taskforge_tasks.log";
 
     if (argc > 1) {
-        config.num_workers = (size_t)atoi(argv[1]);
+        char* end = NULL;
+        unsigned long requested = strtoul(argv[1], &end, 10);
+        if (end == argv[1] || *end != '\0' || requested == 0) {
+            fprintf(stderr, "Error: worker count must be a positive integer\n");
+            return 1;
+        }
+        config.num_workers = (size_t)requested;
     }
 
     printf("[Init] Initializing TaskForge pool (%zu workers, %s priority, %s work-stealing)...\n",
@@ -181,8 +188,12 @@ int main(int argc, char** argv) {
                     printf("[Error] Could not load spec file\n");
                 } else {
                     printf("[Parser] Executing %zu tasks...\n", spec->count);
-                    workload_spec_execute(g_pool, spec, true);
-                    printf("[Parser] Workload execution completed.\n");
+                    int run_status = workload_spec_execute(g_pool, spec, true);
+                    if (run_status == 0) {
+                        printf("[Parser] Workload execution completed successfully.\n");
+                    } else {
+                        printf("[Parser] Workload execution failed with status %d.\n", run_status);
+                    }
                     workload_spec_destroy(spec);
                 }
             } else {
@@ -193,30 +204,68 @@ int main(int argc, char** argv) {
             size_t tasks = 10000;
             sscanf(line, "bench %zu %zu", &workers, &tasks);
 
+            if (workers == 0 || tasks == 0) {
+                printf("[Error] bench requires positive worker and task counts.\n");
+                continue;
+            }
+
+            taskforge_pool_config_t bench_cfg = config;
+            bench_cfg.num_workers = workers;
+            bench_cfg.log_file_path = NULL;
+            taskforge_pool_t* bench_pool = taskforge_pool_create(&bench_cfg);
+            if (!bench_pool) {
+                printf("[Error] Failed to create benchmark pool with %zu workers.\n", workers);
+                continue;
+            }
+
             printf("[Bench] Running %zu tasks with %zu workers...\n", tasks, workers);
             struct timespec t0, t1;
             clock_gettime(CLOCK_MONOTONIC, &t0);
 
-            taskforge_future_t** futs = (taskforge_future_t**)malloc(sizeof(taskforge_future_t*) * tasks);
-            if (!futs) {
-                printf("[Error] Memory allocation failed for benchmark.\n");
+            if (tasks > SIZE_MAX / sizeof(taskforge_future_t*)) {
+                printf("[Error] Task count is too large.\n");
+                taskforge_pool_shutdown(bench_pool, false);
+                taskforge_pool_destroy(bench_pool);
                 continue;
             }
-            for (size_t i = 0; i < tasks; i++) {
-                futs[i] = taskforge_submit(g_pool, dummy_work, (void*)(intptr_t)i);
+
+            taskforge_future_t** futs = malloc(sizeof(*futs) * tasks);
+            if (!futs) {
+                printf("[Error] Memory allocation failed for benchmark.\n");
+                taskforge_pool_shutdown(bench_pool, false);
+                taskforge_pool_destroy(bench_pool);
+                continue;
             }
+
+            size_t submitted = 0;
+            bool failed = false;
             for (size_t i = 0; i < tasks; i++) {
-                if (futs[i]) {
-                    taskforge_future_wait(futs[i], NULL);
-                    taskforge_future_release(futs[i]);
+                futs[i] = taskforge_submit(bench_pool, dummy_work, (void*)(intptr_t)i);
+                if (!futs[i]) {
+                    failed = true;
+                    break;
                 }
+                submitted++;
+            }
+
+            for (size_t i = 0; i < submitted; i++) {
+                taskforge_status_t wait_status = taskforge_future_wait(futs[i], NULL);
+                if (wait_status != TASKFORGE_OK) failed = true;
+                taskforge_future_release(futs[i]);
             }
             free(futs);
 
             clock_gettime(CLOCK_MONOTONIC, &t1);
             double sec = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
-            printf("[Bench] Completed %zu tasks in %.4f s (%.1f tasks/sec)\n",
-                   tasks, sec, (double)tasks / sec);
+            if (failed || submitted != tasks || sec <= 0.0) {
+                printf("[Bench] Benchmark failed: only %zu/%zu tasks completed successfully.\n", submitted, tasks);
+            } else {
+                printf("[Bench] Completed %zu tasks in %.4f s (%.1f tasks/sec)\n",
+                       tasks, sec, (double)tasks / sec);
+            }
+
+            taskforge_pool_shutdown(bench_pool, true);
+            taskforge_pool_destroy(bench_pool);
         } else if (strcmp(cmd, "shutdown") == 0) {
             char mode[16] = "graceful";
             sscanf(line, "shutdown %15s", mode);
@@ -235,7 +284,8 @@ int main(int argc, char** argv) {
         printf("\n[Signal] Interrupted by SIGINT (Ctrl+C). Initiating graceful teardown...\n");
     }
 
-    printf("[Cleanup] Joining threads and freeing resources...\n");
+    printf("[Cleanup] Draining tasks, joining threads, and freeing resources...\n");
+    taskforge_pool_shutdown(g_pool, true);
     taskforge_pool_destroy(g_pool);
     printf("[Done] TaskForge exited cleanly.\n");
     return 0;
