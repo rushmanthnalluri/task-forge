@@ -11,11 +11,17 @@ taskforge_future_t* future_create(uint64_t task_id) {
         free(f);
         return NULL;
     }
-    if (pthread_cond_init(&f->cond, NULL) != 0) {
+    pthread_condattr_t cond_attr;
+    bool cond_attr_ready = (pthread_condattr_init(&cond_attr) == 0);
+    if (!cond_attr_ready ||
+        pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC) != 0 ||
+        pthread_cond_init(&f->cond, &cond_attr) != 0) {
+        if (cond_attr_ready) pthread_condattr_destroy(&cond_attr);
         pthread_mutex_destroy(&f->mutex);
         free(f);
         return NULL;
     }
+    pthread_condattr_destroy(&cond_attr);
 
     atomic_init(&f->ref_count, 2); /* 1 for caller, 1 for pool/worker */
     f->state = TASKFORGE_FUTURE_PENDING;
@@ -106,7 +112,7 @@ taskforge_status_t taskforge_future_wait_timeout(taskforge_future_t* future, uin
     if (!future) return TASKFORGE_ERR_INVALID;
 
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
     ts.tv_sec += timeout_ms / 1000;
     ts.tv_nsec += (long)(timeout_ms % 1000) * 1000000L;
     if (ts.tv_nsec >= 1000000000L) {
