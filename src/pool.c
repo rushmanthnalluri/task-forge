@@ -121,8 +121,8 @@ static void* worker_loop(void* arg) {
                     for (int b = 0; b < 3; b++) {
                         if (queue_try_pop(pool->queue, &prefetch_task)) {
                             if (!ws_deque_push_bottom(&self->deque, &prefetch_task)) {
-                                /* Deque full: return it to the global queue if possible. */
-                                if (queue_try_push(pool->queue, &prefetch_task) != TASKFORGE_OK) {
+                                /* Deque full: return it to the bounded queue, respecting shutdown. */
+                                if (queue_push(pool->queue, &prefetch_task) != TASKFORGE_OK) {
                                     future_fail(prefetch_task.future, TASKFORGE_ERR_SHUTDOWN);
                                 }
                                 break;
