@@ -64,18 +64,9 @@ test: all
 	@echo "=========================================="
 	@echo "  Running TaskForge Test Battery"
 	@echo "=========================================="
-	@./$(BIN_DIR)/test_bounded_queue
-	@./$(BIN_DIR)/test_futures
-	@./$(BIN_DIR)/test_shutdown
-	@./$(BIN_DIR)/test_priorities
-	@./$(BIN_DIR)/test_work_stealing
-	@./$(BIN_DIR)/test_map
-	@./$(BIN_DIR)/test_parser
-	@./$(BIN_DIR)/test_logging
-	@./$(BIN_DIR)/test_stress
-	@./$(BIN_DIR)/test_million_soak 200000
+	@for test in $(TEST_BINS); do ./$test; done
 	@echo "=========================================="
-	@echo "  ALL TESTS PASSED WITH 100% SUCCESS"
+	@echo "  ALL DISCOVERED TESTS PASSED"
 	@echo "=========================================="
 
 test-million: all
@@ -91,37 +82,26 @@ bench: all
 
 asan: CFLAGS += -fsanitize=address,undefined -g -O1
 asan: LDFLAGS += -fsanitize=address,undefined
-asan: clean all
+asan:
+	@$(MAKE) clean
+	@$(MAKE) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" all
 	@echo "Running tests with AddressSanitizer..."
-	@./$(BIN_DIR)/test_bounded_queue
-	@./$(BIN_DIR)/test_futures
-	@./$(BIN_DIR)/test_shutdown
-	@./$(BIN_DIR)/test_priorities
-	@./$(BIN_DIR)/test_work_stealing
-	@./$(BIN_DIR)/test_map
-	@./$(BIN_DIR)/test_parser
-	@./$(BIN_DIR)/test_logging
-	@./$(BIN_DIR)/test_stress
+	@for test in $(TEST_BINS); do ./$test; done
 
 tsan: CFLAGS += -fsanitize=thread -g -O1
 tsan: LDFLAGS += -fsanitize=thread
-tsan: clean all
+tsan:
+	@$(MAKE) clean
+	@$(MAKE) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" all
 	@echo "Running tests with ThreadSanitizer..."
 	@sysctl -w vm.mmap_rnd_bits=28 2>/dev/null || true
-	@./$(BIN_DIR)/test_bounded_queue
-	@./$(BIN_DIR)/test_futures
-	@./$(BIN_DIR)/test_shutdown
-	@./$(BIN_DIR)/test_priorities
-	@./$(BIN_DIR)/test_work_stealing
-	@./$(BIN_DIR)/test_map
-	@./$(BIN_DIR)/test_parser
-	@./$(BIN_DIR)/test_logging
-	@./$(BIN_DIR)/test_stress
+	@for test in $(TEST_BINS); do ./$test; done
 
 valgrind: all
+	@command -v valgrind >/dev/null || { echo "Valgrind is not installed."; exit 2; }
 	@echo "Running Valgrind Memory Verification..."
-	for test in $(TEST_BINS); do valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 $test; done
-	@echo "VALGRIND LEAK-FREE VERIFICATION COMPLETE!"
+	@for test in $(TEST_BINS); do valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./$test; done
+	@echo "VALGRIND VERIFICATION COMPLETE!"
 
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR) *.log
