@@ -319,7 +319,7 @@ taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool,
                                          taskforge_task_fn fn,
                                          void* arg,
                                          taskforge_task_priority_t prio) {
-    if (!pool || !fn || atomic_load(&pool->shutdown_started)) {
+    if (!pool || !fn || !valid_priority(prio) || atomic_load(&pool->shutdown_started)) {
         if (pool) atomic_fetch_add(&pool->rejected_tasks, 1);
         return NULL;
     }
@@ -354,7 +354,7 @@ taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool,
                                              void* arg,
                                              taskforge_task_priority_t prio,
                                              uint32_t timeout_ms) {
-    if (!pool || !fn || atomic_load(&pool->shutdown_started)) {
+    if (!pool || !fn || !valid_priority(prio) || atomic_load(&pool->shutdown_started)) {
         if (pool) atomic_fetch_add(&pool->rejected_tasks, 1);
         return NULL;
     }
