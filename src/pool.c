@@ -9,6 +9,11 @@
 #include "taskforge/work_stealing.h"
 #include "taskforge/log.h"
 
+static bool valid_priority(taskforge_task_priority_t prio) {
+    return prio >= TASKFORGE_PRIO_LOW && prio <= TASKFORGE_PRIO_HIGH;
+}
+
+
 typedef struct {
     size_t id;
     pthread_t thread;
@@ -382,10 +387,6 @@ taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool,
     }
 
     return future;
-}
-
-static bool valid_priority(taskforge_task_priority_t prio) {
-    return prio >= TASKFORGE_PRIO_LOW && prio <= TASKFORGE_PRIO_HIGH;
 }
 
 static bool caller_is_worker(taskforge_pool_t* pool) {
