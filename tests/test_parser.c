@@ -25,6 +25,10 @@ int main(void) {
 
     workload_spec_destroy(spec);
     assert(workload_spec_parse_string(NULL) == NULL);
+    assert(workload_spec_parse_string("TASK 1 HIGH 1 2\n") == NULL);
+    assert(workload_spec_parse_string("TASK 1 URGENT 1 2 3\n") == NULL);
+    assert(workload_spec_parse_string("UNKNOWN 1 2 3\n") == NULL);
+    assert(workload_spec_parse_string("TASK 1 HIGH 1 2 3\nTASK 1 LOW 1 2 3\n") == NULL);
 
     printf("[PASS] test_parser completed successfully!\n\n");
     return 0;
