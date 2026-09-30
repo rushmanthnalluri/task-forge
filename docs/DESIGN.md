@@ -115,6 +115,7 @@ TaskForge provides two explicit shutdown semantics:
    - Workers continue popping until `queue->total_count == 0` and all local deques are empty.
    - All created worker threads are joined via `pthread_join()`.
    - Shutdown must be initiated by a non-worker caller.
+   - Pool destruction must not run concurrently with shutdown or any other pool operation.
    - Result: 100% of submitted tasks finish execution; no tasks are dropped.
 
 2. **Immediate Shutdown (`taskforge_pool_shutdown(pool, false)`)**:
