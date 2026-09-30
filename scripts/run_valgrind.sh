@@ -16,9 +16,12 @@ fi
 
 for test in ./bin/test_*; do
   [ -x "$test" ] || continue
+  case "$test" in
+    ./bin/test_million_soak) continue ;;
+  esac
   valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 "$test"
 done
 
 echo "================================================="
-echo "  VALGRIND: all discovered tests completed under Memcheck."
+echo "  VALGRIND: regular regression tests completed under Memcheck; the one-million-task soak is covered separately by CI sanitizer/soak stages."
 echo "================================================="
