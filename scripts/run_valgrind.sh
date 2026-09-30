@@ -9,11 +9,16 @@ cd "$(dirname "$0")/.."
 
 make -j$(nproc) all
 
-valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/test_futures
-valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/test_shutdown
-valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/test_bounded_queue
-valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/test_map
+if ! command -v valgrind >/dev/null; then
+  echo "Valgrind is not installed." >&2
+  exit 2
+fi
+
+for test in ./bin/test_*; do
+  [ -x "$test" ] || continue
+  valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 "$test"
+done
 
 echo "================================================="
-echo "  VALGRIND: ZERO MEMORY LEAKS DETECTED!"
+echo "  VALGRIND: all discovered tests completed under Memcheck."
 echo "================================================="
