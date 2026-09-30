@@ -49,6 +49,7 @@ int main(void) {
     /* 3. Task cancellation of queued task */
     /* Saturate worker with a 150ms task */
     taskforge_future_t* blocker = taskforge_submit(pool, slow_task, (void*)(intptr_t)150);
+    assert(blocker != NULL);
     /* Submit task while worker is occupied */
     taskforge_future_t* to_cancel = taskforge_submit(pool, slow_task, (void*)(intptr_t)50);
     assert(to_cancel != NULL);
