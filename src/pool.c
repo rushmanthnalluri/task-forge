@@ -423,6 +423,7 @@ int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
 
 void taskforge_pool_destroy(taskforge_pool_t* pool) {
     if (!pool) return;
+    if (caller_is_worker(pool)) return;
 
     if (!atomic_load(&pool->shutdown_complete)) {
         taskforge_pool_shutdown(pool, false);
