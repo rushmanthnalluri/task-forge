@@ -24,7 +24,13 @@ static double run_benchmark(size_t workers, size_t task_count, bool work_stealin
     taskforge_pool_t* pool = taskforge_pool_create(&cfg);
     assert(pool != NULL);
 
-    taskforge_future_t** futs = (taskforge_future_t**)malloc(sizeof(taskforge_future_t*) * task_count);
+    if (task_count == 0 || task_count > SIZE_MAX / sizeof(taskforge_future_t*)) return 0.0;
+    taskforge_future_t** futs = malloc(sizeof(*futs) * task_count);
+    if (!futs) {
+        taskforge_pool_shutdown(pool, false);
+        taskforge_pool_destroy(pool);
+        return 0.0;
+    }
 
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
@@ -52,7 +58,13 @@ static double run_benchmark(size_t workers, size_t task_count, bool work_stealin
 int main(int argc, char** argv) {
     size_t task_count = BENCH_TASKS;
     if (argc > 1) {
-        task_count = (size_t)atoi(argv[1]);
+        char* end = NULL;
+        unsigned long long parsed = strtoull(argv[1], &end, 10);
+        if (end == argv[1] || *end != '\0' || parsed == 0 || parsed > SIZE_MAX) {
+            fprintf(stderr, "Usage: %s [positive-task-count]\n", argv[0]);
+            return 2;
+        }
+        task_count = (size_t)parsed;
     }
 
     printf("==========================================================================\n");
@@ -74,6 +86,11 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < num_tests; i++) {
         size_t w = worker_counts[i];
         double tp = run_benchmark(w, task_count, true);
+        if (tp <= 0.0) {
+            fprintf(stderr, "Benchmark failed for %zu workers.\n", w);
+            if (csv) fclose(csv);
+            return 1;
+        }
         if (i == 0) baseline_tp = tp;
 
         double speedup = tp / baseline_tp;
