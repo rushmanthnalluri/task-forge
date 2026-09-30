@@ -184,7 +184,7 @@ Pressing `Ctrl+C` (`SIGINT`) triggers signal-safe graceful teardown, drains all 
 | **Task Cancellation** | `test_futures` | Queued tasks cancel cleanly; workers skip; waiters get `ERR_CANCELLED` | **PASSED** |
 | **Graceful Shutdown Drain** | `test_shutdown` | 100% in-flight tasks drain; new submissions rejected; 0 leaked | **PASSED** |
 | **ThreadSanitizer** | `make tsan` | Runs the discovered test suite under TSan | **CI VERIFIED** |
-| **Valgrind Memcheck** | `make valgrind` | Runs every discovered test binary under Memcheck | **CI VERIFIED** |
+| **Valgrind Memcheck** | `make valgrind` | Runs regular regression test binaries under Memcheck; the 1M soak is covered separately | **CI VERIFIED** |
 | **ASan / UBSan** | `make asan` | Runs the discovered test suite under sanitizers | **CI VERIFIED** |
 | **Distinction: Work-Stealing** | `bench_stealing_vs_global` | Measures global-queue vs work-stealing throughput on the current host | **PASSED** |
 | **Scaling & Contention Curve** | `bench_scaling` | Generates host-specific CSV measurements and scaling data | **PASSED** |
