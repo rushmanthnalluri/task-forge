@@ -21,6 +21,12 @@ int main(void) {
     taskforge_pool_t* pool = taskforge_pool_create(&cfg);
     assert(pool != NULL);
 
+    /* Invalid priority values must be rejected rather than silently normalized. */
+    assert(taskforge_submit_prio(pool, slow_task, NULL, (taskforge_task_priority_t)99) == NULL);
+    assert(taskforge_try_submit(pool, slow_task, NULL, (taskforge_task_priority_t)99) == NULL);
+    assert(taskforge_submit_timeout(pool, slow_task, NULL, (taskforge_task_priority_t)99, 1) == NULL);
+    printf("  [PASS] Invalid task priorities are rejected.\n");
+
     /* 1. Basic future result */
     taskforge_future_t* fut1 = taskforge_submit(pool, slow_task, (void*)(intptr_t)10);
     assert(fut1 != NULL);
