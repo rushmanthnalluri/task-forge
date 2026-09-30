@@ -143,7 +143,7 @@ make asan
 # Run ThreadSanitizer (TSan race detector)
 make tsan
 
-# Run Valgrind leak checker (zero leaks verified)
+# Run Valgrind leak checker
 make valgrind
 
 # Run scalability & work-stealing benchmarks
