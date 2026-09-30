@@ -13,5 +13,5 @@ sysctl -w vm.mmap_rnd_bits=28 2>/dev/null || true
 make tsan
 
 echo "================================================="
-echo "  TSAN: ZERO DATA RACES DETECTED!"
+echo "  TSAN: test suite completed under ThreadSanitizer."
 echo "================================================="
