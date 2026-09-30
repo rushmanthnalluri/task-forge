@@ -23,7 +23,13 @@ static double run_engine(size_t workers, size_t task_count, bool work_stealing) 
     taskforge_pool_t* pool = taskforge_pool_create(&cfg);
     assert(pool != NULL);
 
-    taskforge_future_t** futs = (taskforge_future_t**)malloc(sizeof(taskforge_future_t*) * task_count);
+    if (task_count == 0 || task_count > SIZE_MAX / sizeof(taskforge_future_t*)) return 0.0;
+    taskforge_future_t** futs = malloc(sizeof(*futs) * task_count);
+    if (!futs) {
+        taskforge_pool_shutdown(pool, false);
+        taskforge_pool_destroy(pool);
+        return 0.0;
+    }
 
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
