@@ -71,6 +71,10 @@ int main(void) {
         size_t w = worker_list[i];
         double tp_global = run_engine(w, task_count, false);
         double tp_steal  = run_engine(w, task_count, true);
+        if (tp_global <= 0.0 || tp_steal <= 0.0) {
+            fprintf(stderr, "Benchmark failed for %zu workers.\n", w);
+            return 1;
+        }
         double gain = ((tp_steal - tp_global) / tp_global) * 100.0;
 
         printf("%-10zu | %-20.1f | %-20.1f | %-+.1f%%\n",
