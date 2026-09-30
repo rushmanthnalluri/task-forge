@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdint.h>
+#include <errno.h>
 #include "taskforge/taskforge.h"
 #include "taskforge/parser.h"
 
