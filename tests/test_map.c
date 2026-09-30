@@ -19,6 +19,7 @@ int main(void) {
 
     taskforge_pool_t* pool = taskforge_pool_create(&cfg);
     assert(pool != NULL);
+    assert(taskforge_map(pool, multiply_by_five, NULL, 0, NULL) == TASKFORGE_OK);
 
     size_t count = 1000;
     void** items = (void**)malloc(sizeof(void*) * count);
