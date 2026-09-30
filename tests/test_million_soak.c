@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
         args[i].start_val = current_val;
         args[i].count = (i == NUM_PRODUCERS - 1) ? (total_tasks - current_val + 1) : per_producer;
         current_val += args[i].count;
-        pthread_create(&producers[i], NULL, producer_thread, &args[i]);
+        assert(pthread_create(&producers[i], NULL, producer_thread, &args[i]) == 0);
     }
 
     for (int i = 0; i < NUM_PRODUCERS; i++) {
