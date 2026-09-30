@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TaskForge Scaling Curve Plotter
-Generates SVG and PNG charts of worker scaling, speedup factor, and contention ceiling.
+Generates a PNG chart of worker scaling, speedup factor, and contention ceiling.
 """
 
 import sys
@@ -13,6 +13,7 @@ def generate_plot(csv_path="benchmarks/scaling_results.csv", output_png="docs/sc
         print(f"Error: {csv_path} not found.")
         return 1
 
+    required = {"workers", "throughput", "speedup", "efficiency"}
     workers = []
     throughputs = []
     speedups = []
@@ -20,11 +21,22 @@ def generate_plot(csv_path="benchmarks/scaling_results.csv", output_png="docs/sc
 
     with open(csv_path, 'r') as f:
         reader = csv.DictReader(f)
+        if reader.fieldnames is None or not required.issubset(reader.fieldnames):
+            print(f"Error: CSV must contain columns {sorted(required)}.")
+            return 1
         for row in reader:
-            workers.append(int(row['workers']))
-            throughputs.append(float(row['throughput']))
-            speedups.append(float(row['speedup']))
-            efficiencies.append(float(row['efficiency']))
+            try:
+                workers.append(int(row['workers']))
+                throughputs.append(float(row['throughput']))
+                speedups.append(float(row['speedup']))
+                efficiencies.append(float(row['efficiency']))
+            except (KeyError, ValueError):
+                print("Error: invalid benchmark row.")
+                return 1
+
+    if not workers:
+        print("Error: benchmark CSV contains no data rows.")
+        return 1
 
     try:
         import matplotlib
