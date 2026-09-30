@@ -45,7 +45,7 @@ Under heavy multi-core concurrency, work-stealing isolates workers into their ow
 | **12** | 105,393.6 | 117,756.3 | **+11.7%** |
 
 ### Key Takeaway:
-At 4+ workers, work-stealing consistently outperforms the global queue by **11.7% to 19.5%**. Because workers push and pop from their private local deque in LIFO order without locking the global queue mutex, lock hold time is minimized and L1 cache locality is preserved.
+The checked-in measurements show workload-dependent differences between the two scheduling modes. Work-stealing can reduce pressure on the global queue by allowing workers to execute locally, but the measured gain or loss depends on worker count, workload size, CPU topology, and system load.
 
 
 ## Reproducibility
