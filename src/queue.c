@@ -16,17 +16,24 @@ taskforge_queue_t* queue_create(size_t capacity, bool enable_priority) {
         free(q);
         return NULL;
     }
-    if (pthread_cond_init(&q->not_empty, NULL) != 0) {
+    pthread_condattr_t cond_attr;
+    bool cond_attr_ready = (pthread_condattr_init(&cond_attr) == 0);
+    if (!cond_attr_ready ||
+        pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC) != 0 ||
+        pthread_cond_init(&q->not_empty, &cond_attr) != 0) {
+        if (cond_attr_ready) pthread_condattr_destroy(&cond_attr);
         pthread_mutex_destroy(&q->mutex);
         free(q);
         return NULL;
     }
-    if (pthread_cond_init(&q->not_full, NULL) != 0) {
+    if (pthread_cond_init(&q->not_full, &cond_attr) != 0) {
         pthread_cond_destroy(&q->not_empty);
+        pthread_condattr_destroy(&cond_attr);
         pthread_mutex_destroy(&q->mutex);
         free(q);
         return NULL;
     }
+    pthread_condattr_destroy(&cond_attr);
 
     q->enable_priority = enable_priority;
     q->total_capacity = capacity;
@@ -150,7 +157,7 @@ taskforge_status_t queue_push_timeout(taskforge_queue_t* q, const taskforge_task
     if (!q || !task) return TASKFORGE_ERR_INVALID;
 
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
     ts.tv_sec += timeout_ms / 1000;
     ts.tv_nsec += (long)(timeout_ms % 1000) * 1000000L;
     if (ts.tv_nsec >= 1000000000L) {
@@ -170,7 +177,9 @@ taskforge_status_t queue_push_timeout(taskforge_queue_t* q, const taskforge_task
     }
     if (q->total_count >= q->total_capacity) {
         pthread_mutex_unlock(&q->mutex);
-        return (rc == ETIMEDOUT) ? TASKFORGE_ERR_TIMEOUT : TASKFORGE_ERR_FULL;
+        if (rc == ETIMEDOUT) return TASKFORGE_ERR_TIMEOUT;
+        if (rc != 0) return TASKFORGE_ERR_FAILED;
+        return TASKFORGE_ERR_FULL;
     }
 
     size_t ring_idx = get_ring_index(q, task->prio);
