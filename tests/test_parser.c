@@ -20,7 +20,7 @@ int main(void) {
     assert(spec->tasks[0].compute_iterations == 100);
     assert(spec->tasks[0].payload == 42);
     assert(spec->tasks[1].prio == TASKFORGE_PRIO_LOW);
-    assert(spec->tasks[4].task_id == 8);
+    assert(spec->tasks[4].task_id == 11);
     assert(spec->tasks[4].prio == TASKFORGE_PRIO_NORMAL);
 
     workload_spec_destroy(spec);
