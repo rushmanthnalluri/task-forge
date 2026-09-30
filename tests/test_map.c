@@ -10,6 +10,7 @@ static void* multiply_by_five(void* arg) {
 
 int main(void) {
     printf("[TEST] Running test_map...\n");
+    assert(taskforge_map(NULL, NULL, NULL, 0, NULL) == TASKFORGE_ERR_INVALID);
 
     taskforge_pool_config_t cfg;
     taskforge_default_config(&cfg);
