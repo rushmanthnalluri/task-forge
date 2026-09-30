@@ -6,6 +6,14 @@
 #include "taskforge/taskforge.h"
 
 static atomic_int g_executed_tasks = 0;
+static taskforge_pool_t* g_self_shutdown_pool = NULL;
+static atomic_int g_self_shutdown_rc = TASKFORGE_OK;
+
+static void* self_shutdown_task(void* arg) {
+    (void)arg;
+    atomic_store(&g_self_shutdown_rc, taskforge_pool_shutdown(g_self_shutdown_pool, true));
+    return NULL;
+}
 
 static void* counting_task(void* arg) {
     (void)arg;
