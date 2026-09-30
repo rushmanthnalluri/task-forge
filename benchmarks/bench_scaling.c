@@ -35,15 +35,20 @@ static double run_benchmark(size_t workers, size_t task_count, bool work_stealin
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
 
+    size_t submitted = 0;
+    bool failed = false;
     for (size_t i = 0; i < task_count; i++) {
         futs[i] = taskforge_submit(pool, compute_workload, (void*)(intptr_t)i);
+        if (!futs[i]) {
+            failed = true;
+            break;
+        }
+        submitted++;
     }
 
-    for (size_t i = 0; i < task_count; i++) {
-        if (futs[i]) {
-            taskforge_future_wait(futs[i], NULL);
-            taskforge_future_release(futs[i]);
-        }
+    for (size_t i = 0; i < submitted; i++) {
+        if (taskforge_future_wait(futs[i], NULL) != TASKFORGE_OK) failed = true;
+        taskforge_future_release(futs[i]);
     }
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
@@ -52,6 +57,7 @@ static double run_benchmark(size_t workers, size_t task_count, bool work_stealin
     double sec = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
     taskforge_pool_destroy(pool);
 
+    if (failed || submitted != task_count || sec <= 0.0) return 0.0;
     return (double)task_count / sec;
 }
 
