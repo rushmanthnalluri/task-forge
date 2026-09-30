@@ -26,7 +26,13 @@ static void* stress_producer(void* arg) {
                 taskforge_future_cancel(fut);
             }
             void* res = NULL;
-            taskforge_future_wait(fut, &res);
+            taskforge_status_t status = taskforge_future_wait(fut, &res);
+            if (i % 7 == 0 && status == TASKFORGE_ERR_CANCELLED) {
+                assert(taskforge_future_get_state(fut) == TASKFORGE_FUTURE_CANCELLED);
+            } else {
+                assert(status == TASKFORGE_OK);
+                assert((intptr_t)res == (intptr_t)(i ^ 0x55));
+            }
             taskforge_future_release(fut);
         }
     }
@@ -52,7 +58,7 @@ int main(void) {
     for (int i = 0; i < num_producers; i++) {
         args[i].pool = pool;
         args[i].iterations = 1000;
-        pthread_create(&producers[i], NULL, stress_producer, &args[i]);
+        assert(pthread_create(&producers[i], NULL, stress_producer, &args[i]) == 0);
     }
 
     for (int i = 0; i < num_producers; i++) {
