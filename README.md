@@ -9,7 +9,7 @@ Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
 
 * **Bounded Producer-Consumer Buffer (`taskforge_queue_t`)**:
   * Dual condition variables (`not_full`, `not_empty`) protecting a circular ring buffer under a single mutex.
-  * Correct wait predicates (`while` loops, never `if`) to guarantee zero lost wakeups and immunity to spurious wakeups.
+  * Correct wait predicates (`while` loops) to handle spurious wakeups and contention safely.
   * Bounded backpressure: producers block when full, or opt into non-blocking submissions (`taskforge_try_submit`) and timed waits (`taskforge_submit_timeout`).
 * **Worker Pool & Thread Lifecycle (`taskforge_pool_t`)**:
   * Fixed or hardware-adaptive worker thread pool (`sysconf(_SC_NPROCESSORS_ONLN)`).
@@ -21,7 +21,7 @@ Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
 * **Distinction Feature: Per-Worker Work-Stealing Deques**:
   * Each worker owns a double-ended queue (deque).
   * Worker pushes and pops from its own bottom (LIFO) for CPU cache locality.
-  * Idle workers steal from other workers' top (FIFO) using `pthread_mutex_trylock`, eliminating global lock contention on multi-core systems (+19.5% throughput gain).
+  * Idle workers steal from other workers' top (FIFO) using `pthread_mutex_trylock`, reducing pressure on the global queue under workloads that benefit from local execution.
 * **Multi-Level Priority Scheduling with Starvation Avoidance**:
   * Supports `HIGH`, `NORMAL`, and `LOW` priority queues.
   * Starvation prevention algorithm yields lower priorities after consecutive high-priority tasks.
@@ -30,7 +30,7 @@ Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
 * **Workload Lexer & Parser (`workload_spec_t`)**:
   * Parses declarative workload specification scripts (`workload.spec`) to drive reproducible benchmark scenarios.
 * **Signal-Safe Shutdown (`SIGINT`) & On-Disk Persistence**:
-  * Gracefully catches `SIGINT` (Ctrl+C), completes pending tasks, and joins workers without dropping tasks.
+  * Gracefully catches `SIGINT` (Ctrl+C), drains accepted work, and joins workers.
   * Thread-safe disk logger recording timestamps, worker IDs, and durations to disk (`taskforge_tasks.log`).
 
 ---
@@ -178,14 +178,14 @@ Pressing `Ctrl+C` (`SIGINT`) triggers signal-safe graceful teardown, drains all 
 
 | Specification Requirement | Verification Target | Result | Status |
 |:---|:---|:---:|:---:|
-| **1 Million Tasks Soak Test** | `make test-million` | 1,000,000-task correctness/throughput soak test | **PASSED** |
+| **1 Million Tasks Soak Test** | `make test-million` | 1,000,000-task correctness/throughput soak test | **CI VERIFIED** |
 | **Bounded Queue Blocking** | `test_bounded_queue` | Bounded capacity blocks producers; `TASKFORGE_ERR_FULL` / timeout | **PASSED** |
 | **Future Protocol & Wait** | `test_futures` | Timed wait expires on slow tasks; normal wait retrieves results | **PASSED** |
 | **Task Cancellation** | `test_futures` | Queued tasks cancel cleanly; workers skip; waiters get `ERR_CANCELLED` | **PASSED** |
 | **Graceful Shutdown Drain** | `test_shutdown` | 100% in-flight tasks drain; new submissions rejected; 0 leaked | **PASSED** |
-| **Zero Data Races (TSan)** | `make tsan` | Runs the full test suite under TSan when supported by the host | **PASSED** |
-| **Zero Memory Leaks (Valgrind)**| `make valgrind` | Runs every test binary under Memcheck | **PASSED** |
-| **ASan / UBSan Clean** | `make asan` | Runs the concurrency test suite under sanitizers | **PASSED** |
+| **ThreadSanitizer** | `make tsan` | Runs the discovered test suite under TSan | **CI VERIFIED** |
+| **Valgrind Memcheck** | `make valgrind` | Runs every discovered test binary under Memcheck | **CI VERIFIED** |
+| **ASan / UBSan** | `make asan` | Runs the discovered test suite under sanitizers | **CI VERIFIED** |
 | **Distinction: Work-Stealing** | `bench_stealing_vs_global` | Measures global-queue vs work-stealing throughput on the current host | **PASSED** |
 | **Scaling & Contention Curve** | `bench_scaling` | Generates host-specific CSV measurements and scaling data | **PASSED** |
 
@@ -233,3 +233,13 @@ int main(void) {
 ## Verification Notes
 
 Performance numbers are environment-dependent and must be regenerated on the target machine with `make bench`. Immediate shutdown stops accepting work, fails tasks still waiting in the global queue, prevents execution of work remaining in local deques, and allows a task already running to finish.
+
+
+## Behavioral Contracts
+
+- Immediate shutdown stops accepting work, fails tasks still waiting in the global queue, prevents execution of work remaining in worker-local deques, and allows a task already running to finish.
+- Graceful shutdown drains accepted work before joining workers.
+- Shutdown and destruction are caller-thread operations; a worker must not call pool shutdown or destruction on its own pool.
+- With work stealing enabled, priority ordering applies when selecting from the global priority queue. A task already moved into a worker-local deque may execute before a newly submitted higher-priority task.
+- Workload parser task IDs identify workload entries. The engine still assigns its own internal task IDs for futures/logging.
+- The CLI `bench <workers> <tasks>` command creates a dedicated benchmark pool using the requested worker count.
