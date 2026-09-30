@@ -23,5 +23,9 @@ jobs:
         run: make test-million
       - name: ThreadSanitizer
         run: make tsan
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
       - name: Valgrind
         run: make valgrind
