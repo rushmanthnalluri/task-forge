@@ -102,19 +102,19 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
     uint64_t next_id = 1;
     size_t line_number = 0;
     char* saveptr = NULL;
-    char* line = strtok_r(copy, "\n", &saveptr);
+    char* line = strtok_r(copy, "\r\n", &saveptr);
 
     while (line) {
         line_number++;
         while (isspace((unsigned char)*line)) line++;
         if (*line == '\0' || *line == '#') {
-            line = strtok_r(NULL, "\n", &saveptr);
+            line = strtok_r(NULL, "\r\n", &saveptr);
             continue;
         }
 
         char cmd[32] = {0};
         if (sscanf(line, "%31s", cmd) != 1) {
-            line = strtok_r(NULL, "\n", &saveptr);
+            line = strtok_r(NULL, "\r\n", &saveptr);
             continue;
         }
 
@@ -190,7 +190,7 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
             goto fail;
         }
 
-        line = strtok_r(NULL, "\n", &saveptr);
+        line = strtok_r(NULL, "\r\n", &saveptr);
     }
 
     free(copy);
