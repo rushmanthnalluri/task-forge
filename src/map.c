@@ -1,16 +1,21 @@
 #include "taskforge/taskforge.h"
 #include <stdlib.h>
+#include <stdint.h>
 
 taskforge_status_t taskforge_map(taskforge_pool_t* pool,
                                  taskforge_task_fn map_fn,
                                  void** items,
                                  size_t count,
                                  void** results) {
-    if (!pool || !map_fn || !items || count == 0) {
+    if (!pool || !map_fn || (count > 0 && !items)) {
         return TASKFORGE_ERR_INVALID;
     }
+    if (count == 0) return TASKFORGE_OK;
+    if (count > SIZE_MAX / sizeof(taskforge_future_t*)) {
+        return TASKFORGE_ERR_NOMEM;
+    }
 
-    taskforge_future_t** futures = (taskforge_future_t**)malloc(sizeof(taskforge_future_t*) * count);
+    taskforge_future_t** futures = malloc(sizeof(*futures) * count);
     if (!futures) return TASKFORGE_ERR_NOMEM;
 
     taskforge_status_t overall_status = TASKFORGE_OK;
