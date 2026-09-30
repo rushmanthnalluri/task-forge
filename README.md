@@ -240,6 +240,7 @@ Performance numbers are environment-dependent and must be regenerated on the tar
 - Immediate shutdown stops accepting work, fails tasks still waiting in the global queue, prevents execution of work remaining in worker-local deques, and allows a task already running to finish.
 - Graceful shutdown drains accepted work before joining workers.
 - Shutdown and destruction are caller-thread operations; a worker must not call pool shutdown or destruction on its own pool.
+- `taskforge_pool_destroy()` must not run concurrently with any other pool operation, including a shutdown call that another thread is still completing.
 - With work stealing enabled, priority ordering applies when selecting from the global priority queue. A task already moved into a worker-local deque may execute before a newly submitted higher-priority task.
 - Workload parser task IDs identify workload entries. The engine still assigns its own internal task IDs for futures/logging.
 - The CLI `bench <workers> <tasks>` command creates a dedicated benchmark pool using the requested worker count.
