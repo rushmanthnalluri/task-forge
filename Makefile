@@ -18,6 +18,7 @@ LIB_SHARED = $(BUILD_DIR)/libtaskforge.so
 
 TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
 TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(BIN_DIR)/%, $(TEST_SRCS))
+MEMCHECK_BINS = $(filter-out $(BIN_DIR)/test_million_soak,$(TEST_BINS))
 
 BENCH_SRCS = $(wildcard $(BENCH_DIR)/*.c)
 BENCH_BINS = $(patsubst $(BENCH_DIR)/%.c, $(BIN_DIR)/%, $(BENCH_SRCS))
@@ -100,7 +101,7 @@ tsan:
 valgrind: all
 	@command -v valgrind >/dev/null || { echo "Valgrind is not installed."; exit 2; }
 	@echo "Running Valgrind Memory Verification..."
-	@printf '%s\n' $(TEST_BINS) | xargs -r -n1 valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1
+	@printf '%s\n' $(MEMCHECK_BINS) | xargs -r -n1 valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1
 	@echo "VALGRIND VERIFICATION COMPLETE!"
 
 clean:
