@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <errno.h>
 
 static bool parse_priority(const char* text, taskforge_task_priority_t* out) {
     if (!text || !out) return false;
@@ -70,7 +71,7 @@ static void* execute_parsed_task(void* arg) {
             .tv_sec = desc->sleep_ms / 1000U,
             .tv_nsec = (long)(desc->sleep_ms % 1000U) * 1000000L
         };
-        while (nanosleep(&delay, &delay) != 0) {
+        while (nanosleep(&delay, &delay) != 0 && errno == EINTR) {
             /* Retry if interrupted by a signal. */
         }
     }
