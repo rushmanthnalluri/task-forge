@@ -66,9 +66,13 @@ static void* execute_parsed_task(void* arg) {
     if (!desc) return NULL;
 
     if (desc->sleep_ms > 0) {
-        uint64_t delay_us = (uint64_t)desc->sleep_ms * 1000ULL;
-        if (delay_us > 1000000000ULL) delay_us = 1000000000ULL;
-        usleep((useconds_t)delay_us);
+        struct timespec delay = {
+            .tv_sec = desc->sleep_ms / 1000U,
+            .tv_nsec = (long)(desc->sleep_ms % 1000U) * 1000000L
+        };
+        while (nanosleep(&delay, &delay) != 0) {
+            /* Retry if interrupted by a signal. */
+        }
     }
 
     int64_t val = desc->payload;
