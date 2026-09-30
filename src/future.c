@@ -76,7 +76,8 @@ void future_complete(taskforge_future_t* future, void* result) {
 void future_fail(taskforge_future_t* future, int error_code) {
     if (!future) return;
     pthread_mutex_lock(&future->mutex);
-    if (future->state != TASKFORGE_FUTURE_CANCELLED) {
+    if (future->state == TASKFORGE_FUTURE_PENDING ||
+        future->state == TASKFORGE_FUTURE_RUNNING) {
         future->state = TASKFORGE_FUTURE_FAILED;
         future->error_code = error_code;
     }
