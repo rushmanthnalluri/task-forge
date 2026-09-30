@@ -17,3 +17,9 @@ jobs:
         run: make test
       - name: AddressSanitizer and UBSan
         run: make asan
+      - name: One-million-task soak
+        run: make test-million
+      - name: ThreadSanitizer
+        run: make tsan
+      - name: Valgrind
+        run: make valgrind
