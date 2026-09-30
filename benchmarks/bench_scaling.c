@@ -15,6 +15,8 @@ static void* compute_workload(void* arg) {
 }
 
 static double run_benchmark(size_t workers, size_t task_count, bool work_stealing) {
+    if (task_count == 0 || task_count > SIZE_MAX / sizeof(taskforge_future_t*)) return 0.0;
+
     taskforge_pool_config_t cfg;
     taskforge_default_config(&cfg);
     cfg.num_workers = workers;
@@ -24,7 +26,6 @@ static double run_benchmark(size_t workers, size_t task_count, bool work_stealin
     taskforge_pool_t* pool = taskforge_pool_create(&cfg);
     assert(pool != NULL);
 
-    if (task_count == 0 || task_count > SIZE_MAX / sizeof(taskforge_future_t*)) return 0.0;
     taskforge_future_t** futs = malloc(sizeof(*futs) * task_count);
     if (!futs) {
         taskforge_pool_shutdown(pool, false);
