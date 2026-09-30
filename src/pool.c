@@ -35,6 +35,7 @@ struct taskforge_pool {
     atomic_size_t rr_worker_idx;
     pthread_mutex_t shutdown_mutex;
     pthread_cond_t shutdown_cond;
+    size_t created_workers;
 };
 
 void taskforge_default_config(taskforge_pool_config_t* config) {
@@ -52,7 +53,6 @@ static void execute_task_item(worker_thread_t* self, taskforge_task_t* task) {
 
     /* Check if task was cancelled before execution started */
     if (!future_mark_running(task->future)) {
-        atomic_fetch_add(&pool->completed_tasks, 1);
         future_release(task->future);
         return;
     }
@@ -121,8 +121,10 @@ static void* worker_loop(void* arg) {
                     for (int b = 0; b < 3; b++) {
                         if (queue_try_pop(pool->queue, &prefetch_task)) {
                             if (!ws_deque_push_bottom(&self->deque, &prefetch_task)) {
-                                /* Deque full, push back */
-                                queue_push(pool->queue, &prefetch_task);
+                                /* Deque full: return it to the global queue if possible. */
+                                if (queue_try_push(pool->queue, &prefetch_task) != TASKFORGE_OK) {
+                                    future_fail(prefetch_task.future, TASKFORGE_ERR_SHUTDOWN);
+                                }
                                 break;
                             }
                         } else {
@@ -208,6 +210,12 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
 
     if (cfg.log_file_path) {
         pool->logger = taskforge_logger_create(cfg.log_file_path);
+        if (!pool->logger) {
+            pthread_cond_destroy(&pool->shutdown_cond);
+            pthread_mutex_destroy(&pool->shutdown_mutex);
+            free(pool);
+            return NULL;
+        }
     }
 
     pool->queue = queue_create(cfg.queue_capacity, cfg.enable_priority);
@@ -229,22 +237,42 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
         return NULL;
     }
 
-    for (size_t i = 0; i < cfg.num_workers; i++) {
-        pool->workers[i].id = i;
-        pool->workers[i].pool = pool;
-        pool->workers[i].rng_seed = (unsigned int)(time(NULL) ^ (uintptr_t)&pool->workers[i] ^ ((i + 1) * 7919));
-        if (cfg.enable_work_stealing) {
-            ws_deque_init(&pool->workers[i].deque, (cfg.queue_capacity / cfg.num_workers) + 64);
+    size_t initialized_deques = 0;
+    if (cfg.enable_work_stealing) {
+        size_t per_worker_capacity = (cfg.queue_capacity / cfg.num_workers) + 64;
+        for (size_t i = 0; i < cfg.num_workers; i++) {
+            pool->workers[i].id = i;
+            pool->workers[i].pool = pool;
+            pool->workers[i].rng_seed = (unsigned int)(time(NULL) ^ (uintptr_t)&pool->workers[i] ^ ((i + 1) * 7919));
+            if (!ws_deque_init(&pool->workers[i].deque, per_worker_capacity)) {
+                for (size_t j = 0; j < initialized_deques; j++) {
+                    ws_deque_destroy(&pool->workers[j].deque);
+                }
+                free(pool->workers);
+                queue_destroy(pool->queue);
+                if (pool->logger) taskforge_logger_destroy(pool->logger);
+                pthread_cond_destroy(&pool->shutdown_cond);
+                pthread_mutex_destroy(&pool->shutdown_mutex);
+                free(pool);
+                return NULL;
+            }
+            initialized_deques++;
+        }
+    } else {
+        for (size_t i = 0; i < cfg.num_workers; i++) {
+            pool->workers[i].id = i;
+            pool->workers[i].pool = pool;
+            pool->workers[i].rng_seed = (unsigned int)(time(NULL) ^ (uintptr_t)&pool->workers[i] ^ ((i + 1) * 7919));
         }
     }
 
     for (size_t i = 0; i < cfg.num_workers; i++) {
         if (pthread_create(&pool->workers[i].thread, NULL, worker_loop, &pool->workers[i]) != 0) {
-            pool->config.num_workers = i;
             taskforge_pool_shutdown(pool, false);
             taskforge_pool_destroy(pool);
             return NULL;
         }
+        pool->created_workers++;
     }
 
     return pool;
@@ -298,7 +326,10 @@ taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool,
 
     uint64_t id = atomic_fetch_add(&pool->next_task_id, 1);
     taskforge_future_t* future = future_create(id);
-    if (!future) return NULL;
+    if (!future) {
+        atomic_fetch_add(&pool->rejected_tasks, 1);
+        return NULL;
+    }
 
     taskforge_task_t task;
     task.task_id = id;
@@ -330,7 +361,10 @@ taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool,
 
     uint64_t id = atomic_fetch_add(&pool->next_task_id, 1);
     taskforge_future_t* future = future_create(id);
-    if (!future) return NULL;
+    if (!future) {
+        atomic_fetch_add(&pool->rejected_tasks, 1);
+        return NULL;
+    }
 
     taskforge_task_t task;
     task.task_id = id;
@@ -350,8 +384,18 @@ taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool,
     return future;
 }
 
+static bool caller_is_worker(taskforge_pool_t* pool) {
+    if (!pool || !pool->workers) return false;
+    pthread_t self = pthread_self();
+    for (size_t i = 0; i < pool->created_workers; i++) {
+        if (pthread_equal(self, pool->workers[i].thread)) return true;
+    }
+    return false;
+}
+
 int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
     if (!pool) return TASKFORGE_ERR_INVALID;
+    if (caller_is_worker(pool)) return TASKFORGE_ERR_INVALID;
 
     bool expected = false;
     if (!atomic_compare_exchange_strong(&pool->shutdown_started, &expected, true)) {
@@ -366,7 +410,7 @@ int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
     if (!graceful) atomic_store(&pool->immediate_shutdown, true);
     queue_signal_shutdown(pool->queue, graceful);
 
-    for (size_t i = 0; i < pool->config.num_workers; i++) {
+    for (size_t i = 0; i < pool->created_workers; i++) {
         pthread_join(pool->workers[i].thread, NULL);
     }
 
