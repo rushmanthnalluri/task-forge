@@ -15,6 +15,8 @@ jobs:
         run: make -j2 all
       - name: Test suite
         run: make test
+      - name: CLI smoke test
+        run: printf 'status\nbench 2 100\nexit\n' | ./bin/taskforge_cli 2
       - name: AddressSanitizer and UBSan
         run: make asan
       - name: One-million-task soak
