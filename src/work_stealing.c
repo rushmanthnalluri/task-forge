@@ -26,20 +26,30 @@ bool ws_deque_init(ws_deque_t* deque, size_t capacity) {
 
 void ws_deque_destroy(ws_deque_t* deque) {
     if (!deque) return;
-    pthread_mutex_lock(&deque->mutex);
-    if (deque->buffer) {
-        while (deque->count > 0) {
-            taskforge_task_t* t = &deque->buffer[deque->top];
-            if (t->cleanup) t->cleanup(t->arg);
-            if (t->future) {
-                future_fail(t->future, TASKFORGE_ERR_SHUTDOWN);
-            }
-            deque->top = (deque->top + 1) % deque->capacity;
-            deque->count--;
+
+    while (1) {
+        taskforge_task_t task;
+        pthread_mutex_lock(&deque->mutex);
+        if (!deque->buffer || deque->count == 0) {
+            pthread_mutex_unlock(&deque->mutex);
+            break;
         }
-        free(deque->buffer);
-        deque->buffer = NULL;
+        task = deque->buffer[deque->top];
+        deque->top = (deque->top + 1) % deque->capacity;
+        deque->count--;
+        if (deque->count == 0) {
+            deque->top = 0;
+            deque->bottom = 0;
+        }
+        pthread_mutex_unlock(&deque->mutex);
+
+        if (task.cleanup) task.cleanup(task.arg);
+        if (task.future) future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
     }
+
+    pthread_mutex_lock(&deque->mutex);
+    free(deque->buffer);
+    deque->buffer = NULL;
     pthread_mutex_unlock(&deque->mutex);
     pthread_mutex_destroy(&deque->mutex);
 }
