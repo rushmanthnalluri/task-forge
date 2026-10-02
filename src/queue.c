@@ -3,11 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <stdint.h>
 
 #define STARVATION_THRESHOLD 5
 
 taskforge_queue_t* queue_create(size_t capacity, bool enable_priority) {
     if (capacity == 0) capacity = 1024;
+    if (capacity > SIZE_MAX / sizeof(taskforge_task_t)) return NULL;
 
     taskforge_queue_t* q = (taskforge_queue_t*)calloc(1, sizeof(taskforge_queue_t));
     if (!q) return NULL;
