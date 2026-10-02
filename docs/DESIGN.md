@@ -5,7 +5,7 @@
 
 ## 1. System Overview
 
-**TaskForge** is an industrial-strength, thread-safe asynchronous task execution engine built from scratch in C11 using POSIX pthreads and C11 atomics. It implements the textbook bounded producer-consumer concurrency model extended with per-worker work-stealing deques, multi-level priority scheduling with starvation avoidance, non-blocking backpressure mechanisms, composable futures with timed synchronization, and atomic graceful/immediate shutdown protocols.
+**TaskForge** is a thread-safe asynchronous task execution engine built from scratch in C11 using POSIX pthreads and C11 atomics. It implements the textbook bounded producer-consumer concurrency model extended with per-worker work-stealing deques, multi-level priority scheduling with starvation avoidance, non-blocking backpressure mechanisms, composable futures with timed synchronization, and atomic graceful/immediate shutdown protocols.
 
 ```
                            +-------------------------------------+
