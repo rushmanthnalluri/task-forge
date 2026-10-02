@@ -101,7 +101,7 @@ Tasks submitted with `taskforge_submit_prio_with_cleanup()` may provide a cleanu
 
 ## 5. Work-Stealing Per-Worker Deques
 
-To conquer lock contention on multi-core architectures (e.g., 8-12 cores), TaskForge implements a work-stealing engine:
+To reduce global-queue pressure on workloads that benefit from local execution, TaskForge implements a work-stealing engine:
 * **Worker Deque**: Each worker maintains a local double-ended queue.
 * **Owner Operations (LIFO)**: The worker thread pushes new tasks to the bottom (`ws_deque_push_bottom`) and pops tasks from the bottom (`ws_deque_pop_bottom`). LIFO access maximizes CPU L1/L2 cache locality and hot data reuse.
 * **Stealer Operations (FIFO)**: When a worker's deque and the global queue are empty, the idle worker becomes a stealer. It randomly picks a victim worker and steals from the top (`ws_deque_steal_top`). Stealing from the top takes the oldest, coarsest tasks, leaving finer-grained work for the victim.
@@ -120,7 +120,7 @@ TaskForge provides two explicit shutdown semantics:
    - All created worker threads are joined via `pthread_join()`.
    - Shutdown must be initiated by a non-worker caller.
    - Pool destruction must not run concurrently with shutdown or any other pool operation.
-   - Result: 100% of submitted tasks finish execution; no tasks are dropped.
+   - Result: all accepted, non-cancelled tasks are drained before worker teardown; no accepted task is silently dropped.
 
 2. **Immediate Shutdown (`taskforge_pool_shutdown(pool, false)`)**:
    - Flips `queue->shutdown = true`.
