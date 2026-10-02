@@ -9,7 +9,7 @@ int main(void) {
         "# comment\n"
         "TASK 7 HIGH 5 100 42\n"
         "REPEAT 3 TASK LOW 1 20 9\n"
-        "TASK 8 NORMAL 0 0 12\n";
+        "TASK 11 NORMAL 0 0 12\n";
 
     workload_spec_t* spec = workload_spec_parse_string(text);
     assert(spec != NULL);
