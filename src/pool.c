@@ -58,6 +58,7 @@ static void execute_task_item(worker_thread_t* self, taskforge_task_t* task) {
 
     /* Check if task was cancelled before execution started */
     if (!future_mark_running(task->future)) {
+        if (task->cleanup) task->cleanup(task->arg);
         future_release(task->future);
         return;
     }
@@ -128,6 +129,7 @@ static void* worker_loop(void* arg) {
                             if (!ws_deque_push_bottom(&self->deque, &prefetch_task)) {
                                 /* Deque full: return it to the bounded queue, respecting shutdown. */
                                 if (queue_push(pool->queue, &prefetch_task) != TASKFORGE_OK) {
+                                    if (prefetch_task.cleanup) prefetch_task.cleanup(prefetch_task.arg);
                                     future_fail(prefetch_task.future, TASKFORGE_ERR_SHUTDOWN);
                                 }
                                 break;
@@ -158,6 +160,7 @@ static void* worker_loop(void* arg) {
         if (!found_task) break;
 
         if (atomic_load(&pool->immediate_shutdown)) {
+            if (task.cleanup) task.cleanup(task.arg);
             future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
             continue;
         }
@@ -170,6 +173,7 @@ static void* worker_loop(void* arg) {
         taskforge_task_t leftover;
         while (ws_deque_pop_bottom(&self->deque, &leftover)) {
             if (atomic_load(&pool->immediate_shutdown)) {
+                if (leftover.cleanup) leftover.cleanup(leftover.arg);
                 future_fail(leftover.future, TASKFORGE_ERR_SHUTDOWN);
             } else {
                 execute_task_item(self, &leftover);
@@ -297,10 +301,11 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
     return pool;
 }
 
-taskforge_future_t* taskforge_submit_prio(taskforge_pool_t* pool,
-                                          taskforge_task_fn fn,
-                                          void* arg,
-                                          taskforge_task_priority_t prio) {
+taskforge_future_t* taskforge_submit_prio_with_cleanup(taskforge_pool_t* pool,
+                                                       taskforge_task_fn fn,
+                                                       void* arg,
+                                                       taskforge_task_priority_t prio,
+                                                       taskforge_task_cleanup_fn cleanup) {
     if (!pool || !fn || !valid_priority(prio) || atomic_load(&pool->shutdown_started)) {
         if (pool) atomic_fetch_add(&pool->rejected_tasks, 1);
         return NULL;
@@ -319,15 +324,21 @@ taskforge_future_t* taskforge_submit_prio(taskforge_pool_t* pool,
     task.arg = arg;
     task.future = future;
     task.prio = prio;
+    task.cleanup = cleanup;
 
     if (queue_push(pool->queue, &task) != TASKFORGE_OK) {
         atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
         future_release(future);
         future_release(future);
         return NULL;
     }
 
     return future;
+}
+
+taskforge_future_t* taskforge_submit_prio(taskforge_pool_t* pool, taskforge_task_fn fn, void* arg, taskforge_task_priority_t prio) {
+    return taskforge_submit_prio_with_cleanup(pool, fn, arg, prio, NULL);
 }
 
 taskforge_future_t* taskforge_submit(taskforge_pool_t* pool, taskforge_task_fn fn, void* arg) {
@@ -356,6 +367,7 @@ taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool,
     task.arg = arg;
     task.future = future;
     task.prio = prio;
+    task.cleanup = NULL;
 
     taskforge_status_t status = queue_try_push(pool->queue, &task);
     if (status != TASKFORGE_OK) {
@@ -391,6 +403,7 @@ taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool,
     task.arg = arg;
     task.future = future;
     task.prio = prio;
+    task.cleanup = NULL;
 
     taskforge_status_t status = queue_push_timeout(pool->queue, &task, timeout_ms);
     if (status != TASKFORGE_OK) {
