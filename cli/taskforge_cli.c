@@ -6,6 +6,7 @@
 #include <time.h>
 #include <stdint.h>
 #include <errno.h>
+#include <inttypes.h>
 #include "taskforge/taskforge.h"
 #include "taskforge/parser.h"
 
@@ -76,9 +77,11 @@ int main(int argc, char** argv) {
 
     if (argc > 1) {
         char* end = NULL;
-        unsigned long requested = strtoul(argv[1], &end, 10);
-        if (end == argv[1] || *end != '\0' || requested == 0) {
-            fprintf(stderr, "Error: worker count must be a positive integer\n");
+        errno = 0;
+        unsigned long long requested = strtoull(argv[1], &end, 10);
+        if (end == argv[1] || *end != '\0' || errno == ERANGE ||
+            requested == 0 || requested > SIZE_MAX) {
+            fprintf(stderr, "Error: worker count must be a positive integer in range\n");
             return 1;
         }
         config.num_workers = (size_t)requested;
