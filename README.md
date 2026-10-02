@@ -179,14 +179,14 @@ Pressing `Ctrl+C` (`SIGINT`) triggers signal-safe graceful teardown, drains all 
 
 | Specification Requirement | Verification Target | Result | Status |
 |:---|:---|:---:|:---:|
-| **1 Million Tasks Soak Test** | `make test-million` | 1,000,000-task correctness/throughput soak test | **CI VERIFIED** |
+| **1 Million Tasks Soak Test** | `make test-million` | 1,000,000-task correctness/throughput soak test | **Verified in prior CI run; rerun after changes** |
 | **Bounded Queue Blocking** | `test_bounded_queue` | Bounded capacity blocks producers; `TASKFORGE_ERR_FULL` / timeout | **PASSED** |
 | **Future Protocol & Wait** | `test_futures` | Timed wait expires on slow tasks; normal wait retrieves results | **PASSED** |
 | **Task Cancellation** | `test_futures` | Queued tasks cancel cleanly; workers skip; waiters get `ERR_CANCELLED` | **PASSED** |
 | **Graceful Shutdown Drain** | `test_shutdown` | 100% in-flight tasks drain; new submissions rejected; 0 leaked | **PASSED** |
-| **ThreadSanitizer** | `make tsan` | Runs the discovered test suite under TSan | **CI VERIFIED** |
-| **Valgrind Memcheck** | `make valgrind` | Runs regular regression test binaries under Memcheck; the 1M soak is covered separately | **CI VERIFIED** |
-| **ASan / UBSan** | `make asan` | Runs the discovered test suite under sanitizers | **CI VERIFIED** |
+| **ThreadSanitizer** | `make tsan` | Runs the discovered test suite under TSan | **Verified in prior CI run; rerun after changes** |
+| **Valgrind Memcheck** | `make valgrind` | Runs regular regression test binaries under Memcheck; the 1M soak is covered separately | **Verified in prior CI run; rerun after changes** |
+| **ASan / UBSan** | `make asan` | Runs the discovered test suite under sanitizers | **Verified in prior CI run; rerun after changes** |
 | **Distinction: Work-Stealing** | `bench_stealing_vs_global` | Measures global-queue vs work-stealing throughput on the current host | **PASSED** |
 | **Scaling & Contention Curve** | `bench_scaling` | Generates host-specific CSV measurements and scaling data | **PASSED** |
 
