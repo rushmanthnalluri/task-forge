@@ -72,15 +72,19 @@ void queue_destroy(taskforge_queue_t* q) {
     size_t num_rings = q->enable_priority ? TASKFORGE_PRIO_COUNT : 1;
     for (size_t i = 0; i < num_rings; i++) {
         if (q->ring[i].buffer) {
-            /* If there are unexecuted tasks, release their futures */
-            while (q->ring[i].count > 0) {
-                taskforge_task_t* t = &q->ring[i].buffer[q->ring[i].head];
-                if (t->cleanup) t->cleanup(t->arg);
-                if (t->future) {
-                    future_fail(t->future, TASKFORGE_ERR_SHUTDOWN);
+            while (1) {
+                taskforge_task_t task;
+                pthread_mutex_lock(&q->mutex);
+                if (q->ring[i].count == 0) {
+                    pthread_mutex_unlock(&q->mutex);
+                    break;
                 }
-                q->ring[i].head = (q->ring[i].head + 1) % q->ring[i].capacity;
-                q->ring[i].count--;
+                ring_pop_internal(&q->ring[i], &task);
+                if (q->total_count > 0) q->total_count--;
+                pthread_mutex_unlock(&q->mutex);
+
+                if (task.cleanup) task.cleanup(task.arg);
+                if (task.future) future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
             }
             free(q->ring[i].buffer);
             q->ring[i].buffer = NULL;
@@ -271,26 +275,35 @@ void queue_signal_shutdown(taskforge_queue_t* q, bool graceful) {
         q->draining = true;
     } else {
         q->shutdown = true;
-
-        /* Immediate shutdown fails work still waiting in the global queue. */
-        size_t num_rings = q->enable_priority ? TASKFORGE_PRIO_COUNT : 1;
-        for (size_t i = 0; i < num_rings; i++) {
-            ring_buffer_t* ring = &q->ring[i];
-            while (ring->count > 0) {
-                taskforge_task_t task;
-                ring_pop_internal(ring, &task);
-                if (task.cleanup) task.cleanup(task.arg);
-                if (task.future) {
-                    future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
-                }
-            }
-        }
-        q->total_count = 0;
         q->high_prio_streak = 0;
     }
     pthread_cond_broadcast(&q->not_empty);
     pthread_cond_broadcast(&q->not_full);
     pthread_mutex_unlock(&q->mutex);
+
+    if (!graceful) {
+        /* Detach pending tasks under the queue lock, then invoke user cleanup
+         * and future completion outside the lock to prevent re-entrant deadlocks. */
+        while (1) {
+            taskforge_task_t task;
+            bool found = false;
+            pthread_mutex_lock(&q->mutex);
+            size_t num_rings = q->enable_priority ? TASKFORGE_PRIO_COUNT : 1;
+            for (size_t i = 0; i < num_rings; i++) {
+                if (q->ring[i].count > 0) {
+                    ring_pop_internal(&q->ring[i], &task);
+                    q->total_count--;
+                    found = true;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&q->mutex);
+            if (!found) break;
+
+            if (task.cleanup) task.cleanup(task.arg);
+            if (task.future) future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
+        }
+    }
 }
 
 size_t queue_size(taskforge_queue_t* q) {
