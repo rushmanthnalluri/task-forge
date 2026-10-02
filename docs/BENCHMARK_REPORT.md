@@ -50,4 +50,4 @@ The checked-in measurements show workload-dependent differences between the two 
 
 ## Reproducibility
 
-The numbers in this document are illustrative measurements from a particular benchmark environment. The checked-in CSV may contain measurements from a different run. Use `make bench` to regenerate measurements on the same machine before comparing results.
+The numbers in this document are illustrative measurements from a particular benchmark environment. A generated CSV may contain measurements from a different run; it is intentionally ignored by version control. Use `make bench` to regenerate measurements on the same machine before comparing results.
