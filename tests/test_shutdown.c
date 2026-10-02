@@ -147,6 +147,56 @@ int main(void) {
     assert(atomic_load(&g_cleanup_calls) == 20);
     printf("  [PASS] Immediate shutdown failed queued work and reclaimed queued arguments.\n");
 
+    /* 3. Verify immediate shutdown also cleans tasks already prefetched into a worker-local deque. */
+    printf("  [Step] Testing immediate shutdown of prefetched local-deque work...\n");
+    taskforge_pool_config_t ws_cfg = cfg;
+    ws_cfg.num_workers = 1;
+    ws_cfg.enable_work_stealing = true;
+    taskforge_pool_t* ws_pool = taskforge_pool_create(&ws_cfg);
+    assert(ws_pool != NULL);
+    atomic_store(&g_local_task_started, false);
+
+    taskforge_future_t* ws_blocker = taskforge_submit(ws_pool, immediate_blocker, NULL);
+    assert(ws_blocker != NULL);
+
+    taskforge_future_t* ws_futs[5];
+    for (int i = 0; i < 5; i++) {
+        int* owned = malloc(sizeof(*owned));
+        assert(owned != NULL);
+        *owned = i;
+        if (i == 0) {
+            ws_futs[i] = taskforge_submit_prio_with_cleanup(
+                ws_pool, local_deque_blocker, owned, TASKFORGE_PRIO_NORMAL, cleanup_arg);
+        } else {
+            ws_futs[i] = taskforge_submit_prio_with_cleanup(
+                ws_pool, counting_task, owned, TASKFORGE_PRIO_NORMAL, cleanup_arg);
+        }
+        assert(ws_futs[i] != NULL);
+    }
+
+    for (int i = 0; i < 1000 && !atomic_load(&g_local_task_started); i++) {
+        usleep(1000);
+    }
+    assert(atomic_load(&g_local_task_started));
+
+    int cleanup_before_local = atomic_load(&g_cleanup_calls);
+    assert(taskforge_pool_shutdown(ws_pool, false) == TASKFORGE_OK);
+
+    assert(taskforge_future_wait(ws_futs[0], NULL) == TASKFORGE_OK);
+    for (int i = 1; i < 5; i++) {
+        assert(taskforge_future_wait(ws_futs[i], NULL) == TASKFORGE_ERR_FAILED);
+        assert(taskforge_future_get_error(ws_futs[i]) == TASKFORGE_ERR_SHUTDOWN);
+    }
+    for (int i = 0; i < 5; i++) {
+        taskforge_future_release(ws_futs[i]);
+    }
+    assert(taskforge_future_wait(ws_blocker, NULL) == TASKFORGE_OK);
+    taskforge_future_release(ws_blocker);
+    taskforge_pool_destroy(ws_pool);
+
+    assert(atomic_load(&g_cleanup_calls) == cleanup_before_local + 4);
+    printf("  [PASS] Immediate shutdown reclaimed global and worker-local prefetched arguments exactly once.\n");
+
     printf("[PASS] test_shutdown completed successfully!\n\n");
     return 0;
 }
