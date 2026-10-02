@@ -2,10 +2,12 @@
 #include "taskforge/future.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 bool ws_deque_init(ws_deque_t* deque, size_t capacity) {
     if (!deque) return false;
     if (capacity == 0) capacity = 512;
+    if (capacity > SIZE_MAX / sizeof(taskforge_task_t)) return false;
 
     deque->buffer = (taskforge_task_t*)malloc(sizeof(taskforge_task_t) * capacity);
     if (!deque->buffer) return false;
