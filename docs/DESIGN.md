@@ -95,7 +95,11 @@ A critical concurrency bug in thread pools is race conditions during future recl
 
 ---
 
-## 4. Work-Stealing Per-Worker Deques
+## 4. Task Argument Ownership and Cleanup
+
+Tasks submitted with `taskforge_submit_prio_with_cleanup()` may provide a cleanup callback for heap-owned arguments. The callback is invoked exactly when the task is accepted but never starts execution, including pending cancellation and immediate shutdown; if submission is rejected before acceptance, the callback is also invoked. Once the task function starts, ownership of the argument belongs to that function and the cleanup callback is not invoked. This separates executor-owned cancellation cleanup from task-owned execution cleanup.
+
+## 5. Work-Stealing Per-Worker Deques
 
 To conquer lock contention on multi-core architectures (e.g., 8-12 cores), TaskForge implements a work-stealing engine:
 * **Worker Deque**: Each worker maintains a local double-ended queue.
@@ -105,7 +109,7 @@ To conquer lock contention on multi-core architectures (e.g., 8-12 cores), TaskF
 
 ---
 
-## 5. Shutdown State Machine: Graceful Drain vs Immediate Kill
+## 6. Shutdown State Machine: Graceful Drain vs Immediate Kill
 
 TaskForge provides two explicit shutdown semantics:
 
@@ -125,7 +129,7 @@ TaskForge provides two explicit shutdown semantics:
 
 ---
 
-## 6. Backpressure & Non-Blocking Submissions
+## 7. Backpressure & Non-Blocking Submissions
 
 When consumers cannot keep up with producers, TaskForge provides 3 distinct submission options:
 1. `taskforge_submit()`: Blocks producer thread on `not_full` until queue space opens up.
@@ -133,12 +137,12 @@ When consumers cannot keep up with producers, TaskForge provides 3 distinct subm
 3. `taskforge_submit_timeout()`: Blocks on `not_full` for up to `timeout_ms` milliseconds using `pthread_cond_timedwait`. If no slot opens within the deadline, returns `NULL`.
 
 
-## 7. Verification Scope
+## 8. Verification Scope
 
 The repository tests distinguish implementation checks from environment-specific sanitizer and benchmark runs. Work-stealing tests verify deque ordering; priority tests verify starvation avoidance; shutdown tests verify graceful draining and immediate failure of queued work. Benchmark values are regenerated per host rather than treated as universal performance guarantees.
 
 
-## 8. Failure-Path Contracts
+## 9. Failure-Path Contracts
 
 Pool creation treats logger and work-stealing deque initialization failures as fatal and cleans up every resource initialized before the failure. Partial worker creation is tracked separately from configured worker count so all successfully created threads and all initialized deques are reclaimed.
 
