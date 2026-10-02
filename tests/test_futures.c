@@ -129,6 +129,34 @@ int main(void) {
     assert(atomic_load(&g_cleanup_calls) == 4);
     printf("  [PASS] Rejected cleanup-aware submissions reclaim their arguments.\n");
 
+    /* Force a bounded queue timeout and verify the timed cleanup contract. */
+    taskforge_pool_config_t timeout_cfg = cfg;
+    timeout_cfg.queue_capacity = 1;
+    taskforge_pool_t* timeout_pool = taskforge_pool_create(&timeout_cfg);
+    assert(timeout_pool != NULL);
+    taskforge_future_t* timeout_blocker =
+        taskforge_submit(timeout_pool, slow_task, (void*)(intptr_t)150);
+    assert(timeout_blocker != NULL);
+    taskforge_future_t* timeout_queued =
+        taskforge_submit(timeout_pool, slow_task, (void*)(intptr_t)25);
+    assert(timeout_queued != NULL);
+
+    int* timed_out_arg = malloc(sizeof(*timed_out_arg));
+    assert(timed_out_arg != NULL);
+    *timed_out_arg = 99;
+    assert(taskforge_submit_timeout_with_cleanup(
+               timeout_pool, slow_task, timed_out_arg, TASKFORGE_PRIO_NORMAL,
+               1, cleanup_arg) == NULL);
+    assert(atomic_load(&g_cleanup_calls) == 5);
+
+    assert(taskforge_future_wait(timeout_blocker, NULL) == TASKFORGE_OK);
+    assert(taskforge_future_wait(timeout_queued, NULL) == TASKFORGE_OK);
+    taskforge_future_release(timeout_blocker);
+    taskforge_future_release(timeout_queued);
+    taskforge_pool_shutdown(timeout_pool, true);
+    taskforge_pool_destroy(timeout_pool);
+    printf("  [PASS] Timed submission timeout reclaims its argument.\n");
+
     taskforge_pool_destroy(pool);
     printf("[PASS] test_futures completed successfully!\n\n");
     return 0;
