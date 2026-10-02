@@ -97,7 +97,7 @@ A critical concurrency bug in thread pools is race conditions during future recl
 
 ## 4. Task Argument Ownership and Cleanup
 
-Tasks submitted with `taskforge_submit_prio_with_cleanup()` may provide a cleanup callback for heap-owned arguments. The callback is invoked exactly when the task is accepted but never starts execution, including pending cancellation and immediate shutdown; if submission is rejected before acceptance, the callback is also invoked. Once the task function starts, ownership of the argument belongs to that function and the cleanup callback is not invoked. This separates executor-owned cancellation cleanup from task-owned execution cleanup.
+Tasks submitted with any `*_with_cleanup()` submission API may provide a cleanup callback for heap-owned arguments. The callback is invoked exactly when the task is accepted but never starts execution, including pending cancellation and immediate shutdown; if submission is rejected before acceptance, the callback is also invoked. Once the task function starts, ownership of the argument belongs to that function and the cleanup callback is not invoked. The callback is invoked outside the queue/deque internal mutexes, so cleanup code may safely re-enter TaskForge APIs. This separates executor-owned cancellation cleanup from task-owned execution cleanup.
 
 ## 5. Work-Stealing Per-Worker Deques
 
