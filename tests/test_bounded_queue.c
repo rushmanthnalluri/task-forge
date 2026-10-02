@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <stdint.h>
 #include "taskforge/queue.h"
 #include "taskforge/future.h"
 
@@ -36,6 +37,8 @@ static void* consumer_thread(void* arg) {
 
 int main(void) {
     printf("[TEST] Running test_bounded_queue...\n");
+    assert(queue_create(SIZE_MAX, false) == NULL);
+    printf("  [PASS] Queue rejects allocation-size overflow.\n");
 
     taskforge_queue_t* q = queue_create(TEST_CAPACITY, false);
     assert(q != NULL);
