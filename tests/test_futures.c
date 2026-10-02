@@ -109,6 +109,14 @@ int main(void) {
     assert(atomic_load(&g_cleanup_calls) == 1);
     printf("  [PASS] Cancelled queued task arguments were reclaimed by cleanup callback.\n");
 
+    int* rejected_arg = malloc(sizeof(*rejected_arg));
+    assert(rejected_arg != NULL);
+    *rejected_arg = 7;
+    assert(taskforge_submit_prio_with_cleanup(pool, slow_task, rejected_arg,
+                                              (taskforge_task_priority_t)99, cleanup_arg) == NULL);
+    assert(atomic_load(&g_cleanup_calls) == 2);
+    printf("  [PASS] Rejected cleanup-aware submissions reclaim their arguments.\n");
+
     taskforge_pool_destroy(pool);
     printf("[PASS] test_futures completed successfully!\n\n");
     return 0;
