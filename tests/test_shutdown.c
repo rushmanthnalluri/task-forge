@@ -63,7 +63,25 @@ int main(void) {
     printf("  [PASS] Graceful drain completed all %d tasks before worker teardown.\n", completed);
 
     taskforge_pool_destroy(pool);
-    printf("  [PASS] Graceful shutdown and pool destruction clean.\n");
+    printf("  [PASS] Graceful shutdown and pool destruction clean.\\n");
+
+    /* 1b. A worker must not attempt to join itself during shutdown. */
+    printf("  [Step] Testing worker-initiated shutdown guard...\\n");
+    taskforge_pool_config_t self_cfg = cfg;
+    self_cfg.num_workers = 1;
+    taskforge_pool_t* self_pool = taskforge_pool_create(&self_cfg);
+    assert(self_pool != NULL);
+    g_self_shutdown_pool = self_pool;
+    atomic_store(&g_self_shutdown_rc, TASKFORGE_OK);
+    taskforge_future_t* self_fut = taskforge_submit(self_pool, self_shutdown_task, NULL);
+    assert(self_fut != NULL);
+    assert(taskforge_future_wait(self_fut, NULL) == TASKFORGE_OK);
+    assert(atomic_load(&g_self_shutdown_rc) == TASKFORGE_ERR_INVALID);
+    taskforge_future_release(self_fut);
+    assert(taskforge_pool_shutdown(self_pool, true) == TASKFORGE_OK);
+    taskforge_pool_destroy(self_pool);
+    g_self_shutdown_pool = NULL;
+    printf("  [PASS] Worker-initiated shutdown is rejected without self-join deadlock.\\n");
 
     /* 2. Test immediate shutdown */
     printf("  [Step] Testing immediate shutdown...\n");
