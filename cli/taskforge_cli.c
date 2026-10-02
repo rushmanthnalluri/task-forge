@@ -66,7 +66,7 @@ static void* cli_task_work(void* arg) {
     cli_task_arg_t* t = (cli_task_arg_t*)arg;
     if (t->sleep_ms > 0) sleep_ms(t->sleep_ms);
     for (volatile int i = 0; i < 50000; i++);
-    intptr_t res = t->val * 2;
+    intptr_t res = (intptr_t)t->val * 2;
     free(t);
     return (void*)res;
 }
@@ -98,6 +98,10 @@ static void print_help(void) {
 }
 
 int main(int argc, char** argv) {
+    if (argc > 2) {
+        fprintf(stderr, "Usage: %s [workers]\n", argv[0]);
+        return 2;
+    }
     print_banner();
 
     struct sigaction sa;
