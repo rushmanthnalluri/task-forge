@@ -75,6 +75,7 @@ void queue_destroy(taskforge_queue_t* q) {
             /* If there are unexecuted tasks, release their futures */
             while (q->ring[i].count > 0) {
                 taskforge_task_t* t = &q->ring[i].buffer[q->ring[i].head];
+                if (t->cleanup) t->cleanup(t->arg);
                 if (t->future) {
                     future_fail(t->future, TASKFORGE_ERR_SHUTDOWN);
                 }
@@ -278,6 +279,7 @@ void queue_signal_shutdown(taskforge_queue_t* q, bool graceful) {
             while (ring->count > 0) {
                 taskforge_task_t task;
                 ring_pop_internal(ring, &task);
+                if (task.cleanup) task.cleanup(task.arg);
                 if (task.future) {
                     future_fail(task.future, TASKFORGE_ERR_SHUTDOWN);
                 }
