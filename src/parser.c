@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <errno.h>
+#include <time.h>
 
 static bool parse_priority(const char* text, taskforge_task_priority_t* out) {
     if (!text || !out) return false;
