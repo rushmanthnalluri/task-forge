@@ -308,6 +308,7 @@ taskforge_future_t* taskforge_submit_prio_with_cleanup(taskforge_pool_t* pool,
                                                        taskforge_task_cleanup_fn cleanup) {
     if (!pool || !fn || !valid_priority(prio) || atomic_load(&pool->shutdown_started)) {
         if (pool) atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
         return NULL;
     }
 
@@ -315,6 +316,7 @@ taskforge_future_t* taskforge_submit_prio_with_cleanup(taskforge_pool_t* pool,
     taskforge_future_t* future = future_create(id);
     if (!future) {
         atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
         return NULL;
     }
 
