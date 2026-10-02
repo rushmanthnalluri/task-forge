@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <time.h>
+#include <errno.h>
 #include "taskforge/taskforge.h"
 
 #define BENCH_TASKS 100000
@@ -23,7 +24,7 @@ static double run_engine(size_t workers, size_t task_count, bool work_stealing) 
     cfg.enable_work_stealing = work_stealing;
 
     taskforge_pool_t* pool = taskforge_pool_create(&cfg);
-    assert(pool != NULL);
+    if (!pool) return 0.0;
 
     taskforge_future_t** futs = malloc(sizeof(*futs) * task_count);
     if (!futs) {
