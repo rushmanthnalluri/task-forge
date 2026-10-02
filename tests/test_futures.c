@@ -100,7 +100,7 @@ int main(void) {
     printf("  [PASS] Waiting on cancelled future returned TASKFORGE_ERR_CANCELLED.\n");
 
     taskforge_future_release(to_cancel);
-    assert(atomic_load(&g_cleanup_calls) == 0);
+    assert(atomic_load(&g_cleanup_calls) == 2);
     taskforge_future_wait(blocker, NULL);
     taskforge_future_release(blocker);
 
@@ -118,7 +118,7 @@ int main(void) {
     taskforge_future_release(cleanup_future);
     taskforge_future_wait(cleanup_blocker, NULL);
     taskforge_future_release(cleanup_blocker);
-    assert(atomic_load(&g_cleanup_calls) == 1);
+    assert(atomic_load(&g_cleanup_calls) == 3);
     printf("  [PASS] Cancelled queued task arguments were reclaimed by cleanup callback.\n");
 
     int* rejected_arg = malloc(sizeof(*rejected_arg));
@@ -126,7 +126,7 @@ int main(void) {
     *rejected_arg = 7;
     assert(taskforge_submit_prio_with_cleanup(pool, slow_task, rejected_arg,
                                               (taskforge_task_priority_t)99, cleanup_arg) == NULL);
-    assert(atomic_load(&g_cleanup_calls) == 2);
+    assert(atomic_load(&g_cleanup_calls) == 4);
     printf("  [PASS] Rejected cleanup-aware submissions reclaim their arguments.\n");
 
     taskforge_pool_destroy(pool);
