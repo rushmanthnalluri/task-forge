@@ -15,6 +15,19 @@ static void cleanup_arg(void* arg) {
     atomic_fetch_add(&g_cleanup_calls, 1);
 }
 
+typedef struct {
+    taskforge_pool_t* pool;
+    int value;
+} reentrant_cleanup_arg_t;
+
+static void reentrant_cleanup(void* arg) {
+    reentrant_cleanup_arg_t* owned = (reentrant_cleanup_arg_t*)arg;
+    taskforge_pool_stats_t stats = taskforge_pool_get_stats(owned->pool);
+    (void)stats;
+    free(owned);
+    atomic_fetch_add(&g_cleanup_calls, 1);
+}
+
 static void* self_shutdown_task(void* arg) {
     (void)arg;
     atomic_store(&g_self_shutdown_rc, taskforge_pool_shutdown(g_self_shutdown_pool, true));
@@ -102,10 +115,11 @@ int main(void) {
 
     taskforge_future_t* queued[20];
     for (int i = 0; i < 20; i++) {
-        int* owned_arg = malloc(sizeof(*owned_arg));
+        reentrant_cleanup_arg_t* owned_arg = malloc(sizeof(*owned_arg));
         assert(owned_arg != NULL);
-        *owned_arg = i;
-        queued[i] = taskforge_submit_prio_with_cleanup(pool_imm, counting_task, owned_arg, TASKFORGE_PRIO_NORMAL, cleanup_arg);
+        owned_arg->pool = pool_imm;
+        owned_arg->value = i;
+        queued[i] = taskforge_submit_prio_with_cleanup(pool_imm, counting_task, owned_arg, TASKFORGE_PRIO_NORMAL, reentrant_cleanup);
         assert(queued[i] != NULL);
     }
 
