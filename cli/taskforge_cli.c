@@ -195,9 +195,8 @@ int main(int argc, char** argv) {
             }
             t_arg->sleep_ms = sleep_ms_value;
             t_arg->val = val;
-            taskforge_future_t* fut = taskforge_submit_prio(g_pool, cli_task_work, t_arg, p);
+            taskforge_future_t* fut = taskforge_submit_prio_with_cleanup(g_pool, cli_task_work, t_arg, p, free);
             if (!fut) {
-                free(t_arg);
                 printf("[Error] Submission rejected\n");
             } else {
                 printf("[Submitted] Waiting for future...\n");
