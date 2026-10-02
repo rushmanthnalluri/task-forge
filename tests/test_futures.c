@@ -41,7 +41,19 @@ int main(void) {
     assert(taskforge_submit_prio(pool, slow_task, NULL, (taskforge_task_priority_t)99) == NULL);
     assert(taskforge_try_submit(pool, slow_task, NULL, (taskforge_task_priority_t)99) == NULL);
     assert(taskforge_submit_timeout(pool, slow_task, NULL, (taskforge_task_priority_t)99, 1) == NULL);
-    printf("  [PASS] Invalid task priorities are rejected.\n");
+
+    int* try_rejected_arg = malloc(sizeof(*try_rejected_arg));
+    int* timeout_rejected_arg = malloc(sizeof(*timeout_rejected_arg));
+    assert(try_rejected_arg != NULL && timeout_rejected_arg != NULL);
+    *try_rejected_arg = 11;
+    *timeout_rejected_arg = 12;
+    assert(taskforge_try_submit_with_cleanup(pool, slow_task, try_rejected_arg,
+                                              (taskforge_task_priority_t)99, cleanup_arg) == NULL);
+    assert(taskforge_submit_timeout_with_cleanup(pool, slow_task, timeout_rejected_arg,
+                                                  (taskforge_task_priority_t)99, 1,
+                                                  cleanup_arg) == NULL);
+    assert(atomic_load(&g_cleanup_calls) == 2);
+    printf("  [PASS] Cleanup-aware try/timed submissions reclaim rejected arguments.\n");
 
     /* 1. Basic future result */
     taskforge_future_t* fut1 = taskforge_submit(pool, slow_task, (void*)(intptr_t)10);
