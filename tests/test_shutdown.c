@@ -8,6 +8,12 @@
 static atomic_int g_executed_tasks = 0;
 static taskforge_pool_t* g_self_shutdown_pool = NULL;
 static atomic_int g_self_shutdown_rc = TASKFORGE_OK;
+static atomic_int g_cleanup_calls = 0;
+
+static void cleanup_arg(void* arg) {
+    free(arg);
+    atomic_fetch_add(&g_cleanup_calls, 1);
+}
 
 static void* self_shutdown_task(void* arg) {
     (void)arg;
@@ -96,7 +102,10 @@ int main(void) {
 
     taskforge_future_t* queued[20];
     for (int i = 0; i < 20; i++) {
-        queued[i] = taskforge_submit(pool_imm, counting_task, NULL);
+        int* owned_arg = malloc(sizeof(*owned_arg));
+        assert(owned_arg != NULL);
+        *owned_arg = i;
+        queued[i] = taskforge_submit_prio_with_cleanup(pool_imm, counting_task, owned_arg, TASKFORGE_PRIO_NORMAL, cleanup_arg);
         assert(queued[i] != NULL);
     }
 
@@ -113,7 +122,8 @@ int main(void) {
     taskforge_future_release(blocker_imm);
 
     taskforge_pool_destroy(pool_imm);
-    printf("  [PASS] Immediate shutdown failed queued work and preserved the task already running.\n");
+    assert(atomic_load(&g_cleanup_calls) == 20);
+    printf("  [PASS] Immediate shutdown failed queued work and reclaimed queued arguments.\n");
 
     printf("[PASS] test_shutdown completed successfully!\n\n");
     return 0;
