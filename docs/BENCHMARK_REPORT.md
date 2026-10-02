@@ -15,7 +15,9 @@ This report documents the performance characteristics, parallel scalability, and
 
 ## 2. Worker Thread Scaling & Contention Ceiling
 
-### 2.1 Measured Scaling Curve (100,000 Tasks)
+The tables below are historical sample measurements from one benchmark environment. They are retained as an example of the report format, not as current or universal performance claims. Regenerate them with `make bench` before using the numbers for a new comparison.
+
+### 2.1 Historical Sample Scaling Curve (100,000 Tasks)
 
 | Worker Count | Throughput (Tasks/sec) | Speedup Factor | Efficiency (%) | Contention Regime |
 |:---:|:---:|:---:|:---:|:---|
@@ -28,12 +30,14 @@ This report documents the performance characteristics, parallel scalability, and
 ### 2.2 Identification of the Contention Ceiling
 
 * **Linear Regime (1 - 2 Workers)**: Throughput increases from 863k to 1.32M tasks/second (1.53x speedup). Memory bus contention and lock hold times remain low relative to task execution.
-* **The Contention Knee (at 4 Workers)**: For fine-grained micro-tasks (sub-microsecond CPU workloads), the time spent waiting on condition variable signaling and lock acquisition starts to exceed the actual task computation time.
-* **Lock Saturation Regime (8 - 12 Workers)**: As 8 to 12 threads aggressively contend for buffer mutexes and condition variables, hardware cache coherence protocols (MESI/MOESI) spend substantial cycles invalidating cache lines across CPU cores (cache-line ping-pong).
+* **Observed 4-worker sample**: Throughput dropped relative to the 2-worker sample for this fine-grained workload, consistent with synchronization overhead becoming significant relative to task work.
+* **Observed 8–12 worker sample**: Throughput continued to decline for this workload. The benchmark alone does not isolate the contribution of mutex contention, scheduler effects, cache behavior, or CPU topology.
 
 ---
 
 ## 3. Global Bounded Queue vs. Work-Stealing Deques
+
+The following table is also a historical sample and should not be interpreted as a universal work-stealing advantage.
 
 Under heavy multi-core concurrency, work-stealing isolates workers into their own local double-ended queues:
 
