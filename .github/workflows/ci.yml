@@ -23,7 +23,7 @@ jobs:
       - name: Test suite
         run: make test
       - name: CLI smoke test
-        run: printf 'status\nbench 2 100\nexit\n' | ./bin/taskforge_cli 2
+        run: printf 'status\nsubmit norm 0 21\nsubmit bad 0 1\nmap 4\nbench 2 100\nbench 0 10\nexit\n' | ./bin/taskforge_cli 2
 
   asan-ubsan:
     name: AddressSanitizer and UBSan
