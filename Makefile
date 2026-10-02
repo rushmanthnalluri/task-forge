@@ -98,9 +98,11 @@ tsan:
 	@sysctl -w vm.mmap_rnd_bits=28 2>/dev/null || true
 	@printf '%s\n' $(TEST_BINS) | xargs -r -n1
 
-valgrind: all
+valgrind:
 	@command -v valgrind >/dev/null || { echo "Valgrind is not installed."; exit 2; }
-	@echo "Running Valgrind Memory Verification..."
+	@$(MAKE) clean
+	@$(MAKE) all
+	@echo "Running Valgrind Memory Verification on non-sanitized binaries..."
 	@printf '%s\n' $(MEMCHECK_BINS) | xargs -r -n1 valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1
 	@echo "VALGRIND VERIFICATION COMPLETE!"
 
