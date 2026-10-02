@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <stdint.h>
 #include "taskforge/taskforge.h"
 #include "taskforge/work_stealing.h"
 
@@ -13,6 +14,9 @@ static void* compute_task(void* arg) {
 
 int main(void) {
     printf("[TEST] Running test_work_stealing...\n");
+    ws_deque_t oversized;
+    assert(!ws_deque_init(&oversized, SIZE_MAX));
+    printf("  [PASS] Work-stealing deque rejects allocation-size overflow.\n");
 
     /* Deterministically verify the deque protocol: owner is LIFO, stealer is FIFO. */
     ws_deque_t deque;
