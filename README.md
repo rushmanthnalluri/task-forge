@@ -18,7 +18,7 @@ Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
   * Thread-safe completion channel with result slot (`void*`), error code, mutex, and condition variable.
   * Dual reference-counting invariant (Caller + Worker) designed to prevent premature future reclamation while worker ownership is still active.
   * Timed waits (`taskforge_future_wait_timeout`) and queued task cancellation (`taskforge_future_cancel`).
-  * Optional queued-argument cleanup (`taskforge_submit_prio_with_cleanup`) for ownership-safe cancellation and immediate shutdown.
+  * Optional queued-argument cleanup for blocking, timed, and non-blocking submission (`*_with_cleanup`) so rejected, canceled, or immediately discarded tasks can release owned arguments safely.
 * **Distinction Feature: Per-Worker Work-Stealing Deques**:
   * Each worker owns a double-ended queue (deque).
   * Worker pushes and pops from its own bottom (LIFO) for CPU cache locality.
@@ -233,7 +233,7 @@ int main(void) {
 
 ## Verification Notes
 
-Performance numbers are environment-dependent and must be regenerated on the target machine with `make bench`. For tasks submitted with `taskforge_submit_prio_with_cleanup`, the cleanup callback is invoked if the task is rejected before acceptance, canceled before execution, or discarded by immediate shutdown; it is not invoked after the task function starts. Immediate shutdown stops accepting work, fails tasks still waiting in the global queue, prevents execution of work remaining in local deques, and allows a task already running to finish.
+Performance numbers are environment-dependent and must be regenerated on the target machine with `make bench`. For tasks submitted with a `*_with_cleanup` submission API, the cleanup callback is invoked if the task is rejected before acceptance, canceled before execution, or discarded by immediate shutdown; it is not invoked after the task function starts. Immediate shutdown stops accepting work, fails tasks still waiting in the global queue, prevents execution of work remaining in local deques, and allows a task already running to finish.
 
 
 ## Behavioral Contracts
