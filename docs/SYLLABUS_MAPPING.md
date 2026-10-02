@@ -21,18 +21,18 @@ This document provides a detailed mapping between the Operating Systems course c
 
 ---
 
-## 2. Distinction Bar Features
+## 2. Distinction-Oriented Features
 
-TaskForge exceeds the core specification requirements to achieve the maximum grade on the distinction rubric:
+TaskForge includes several features beyond the core specification:
 
 1. **Per-Worker Work-Stealing Deques**:
    - Each worker has its own local deque (`ws_deque_t`).
    - Push and pop at bottom (LIFO) ensures CPU cache locality.
    - Steal from top (FIFO) balances load dynamically under skewed or bursty workloads.
-   - Non-blocking theft using `pthread_mutex_trylock` dramatically cuts lock contention across 8-12 cores.
+   - Non-blocking theft using `pthread_mutex_trylock` can reduce contention on the global queue for workloads that benefit from local execution.
 2. **Prioritization with Starvation Avoidance**:
    - Multi-level priority queues (`HIGH`, `NORMAL`, `LOW`).
-   - Built-in starvation threshold counter ensures low-priority tasks make deterministic forward progress even during high-priority bursts.
+   - Built-in starvation threshold counter provides a bounded high-priority streak in the global queue; local work-stealing queues can still affect global ordering.
 3. **Task Cancellation**:
    - Cancellation of pending tasks prior to worker execution via `taskforge_future_cancel()`.
    - Worker skips execution cleanly; waiters receive `TASKFORGE_ERR_CANCELLED`.
