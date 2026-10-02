@@ -14,6 +14,7 @@ typedef struct {
     void* arg;
     taskforge_future_t* future;
     taskforge_task_priority_t prio;
+    taskforge_task_cleanup_fn cleanup;
 } taskforge_task_t;
 
 /* Single ring buffer */
