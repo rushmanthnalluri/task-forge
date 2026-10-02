@@ -79,7 +79,9 @@ taskforge_future_t* taskforge_submit(taskforge_pool_t* pool, taskforge_task_fn f
 taskforge_future_t* taskforge_submit_prio(taskforge_pool_t* pool, taskforge_task_fn fn, void* arg, taskforge_task_priority_t prio);
 taskforge_future_t* taskforge_submit_prio_with_cleanup(taskforge_pool_t* pool, taskforge_task_fn fn, void* arg, taskforge_task_priority_t prio, taskforge_task_cleanup_fn cleanup);
 taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool, taskforge_task_fn fn, void* arg, taskforge_task_priority_t prio, uint32_t timeout_ms);
+taskforge_future_t* taskforge_submit_timeout_with_cleanup(taskforge_pool_t* pool, taskforge_task_fn fn, void* arg, taskforge_task_priority_t prio, uint32_t timeout_ms, taskforge_task_cleanup_fn cleanup);
 taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool, taskforge_task_fn fn, void* arg, taskforge_task_priority_t prio);
+taskforge_future_t* taskforge_try_submit_with_cleanup(taskforge_pool_t* pool, taskforge_task_fn fn, void* arg, taskforge_task_priority_t prio, taskforge_task_cleanup_fn cleanup);
 
 /* Future operations */
 taskforge_status_t taskforge_future_wait(taskforge_future_t* future, void** out_result);
