@@ -13,6 +13,15 @@ static void* slow_task(void* arg) {
 int main(void) {
     printf("[TEST] Running test_futures...\n");
 
+    taskforge_pool_config_t oversized_cfg;
+    taskforge_default_config(&oversized_cfg);
+    oversized_cfg.num_workers = SIZE_MAX;
+    assert(taskforge_pool_create(&oversized_cfg) == NULL);
+    oversized_cfg.num_workers = 1;
+    oversized_cfg.queue_capacity = SIZE_MAX;
+    assert(taskforge_pool_create(&oversized_cfg) == NULL);
+    printf("  [PASS] Pool rejects worker/queue allocation-size overflow.\n");
+
     taskforge_pool_config_t cfg;
     taskforge_default_config(&cfg);
     cfg.num_workers = 1; /* single worker to easily test queuing & cancellation */
