@@ -77,9 +77,11 @@ static void* execute_parsed_task(void* arg) {
         }
     }
 
-    int64_t val = desc->payload;
+    /* Use unsigned arithmetic for the intentionally wrapping LCG step.
+     * Signed overflow here would be undefined behavior under C11. */
+    uint64_t val = (uint64_t)desc->payload;
     for (uint64_t i = 0; i < desc->compute_iterations; i++) {
-        val = (val * 1103515245 + 12345) & 0x7fffffff;
+        val = (val * UINT64_C(1103515245) + UINT64_C(12345)) & UINT64_C(0x7fffffff);
     }
 
     free(desc);
