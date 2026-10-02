@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <time.h>
+#include <errno.h>
+#include <limits.h>
 #include "taskforge/taskforge.h"
 
 #define DEFAULT_TOTAL_TASKS 1000000
@@ -67,7 +69,15 @@ static void* producer_thread(void* arg) {
 int main(int argc, char** argv) {
     uint64_t total_tasks = DEFAULT_TOTAL_TASKS;
     if (argc > 1) {
-        total_tasks = (uint64_t)strtoull(argv[1], NULL, 10);
+        char* end = NULL;
+        errno = 0;
+        unsigned long long parsed = strtoull(argv[1], &end, 10);
+        if (end == argv[1] || *end != '\0' || errno == ERANGE ||
+            parsed == 0 || parsed > UINT64_MAX) {
+            fprintf(stderr, "Usage: %s [positive-task-count]\n", argv[0]);
+            return 2;
+        }
+        total_tasks = (uint64_t)parsed;
     }
 
     printf("=================================================================\n");
