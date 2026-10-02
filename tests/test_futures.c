@@ -3,6 +3,13 @@
 #include <assert.h>
 #include <unistd.h>
 #include "taskforge/taskforge.h"
+#include <stdatomic.h>
+
+static atomic_int g_cleanup_calls = 0;
+static void cleanup_arg(void* arg) {
+    free(arg);
+    atomic_fetch_add(&g_cleanup_calls, 1);
+}
 
 static void* slow_task(void* arg) {
     int ms = (int)(intptr_t)arg;
@@ -81,8 +88,26 @@ int main(void) {
     printf("  [PASS] Waiting on cancelled future returned TASKFORGE_ERR_CANCELLED.\n");
 
     taskforge_future_release(to_cancel);
+    assert(atomic_load(&g_cleanup_calls) == 0);
     taskforge_future_wait(blocker, NULL);
     taskforge_future_release(blocker);
+
+    /* 4. Cancellation cleanup callback must reclaim queued task arguments. */
+    taskforge_future_t* cleanup_blocker = taskforge_submit(pool, slow_task, (void*)(intptr_t)150);
+    assert(cleanup_blocker != NULL);
+    int* owned_arg = malloc(sizeof(*owned_arg));
+    assert(owned_arg != NULL);
+    *owned_arg = 42;
+    taskforge_future_t* cleanup_future = taskforge_submit_prio_with_cleanup(
+        pool, slow_task, owned_arg, TASKFORGE_PRIO_NORMAL, cleanup_arg);
+    assert(cleanup_future != NULL);
+    assert(taskforge_future_cancel(cleanup_future));
+    assert(taskforge_future_wait(cleanup_future, NULL) == TASKFORGE_ERR_CANCELLED);
+    taskforge_future_release(cleanup_future);
+    taskforge_future_wait(cleanup_blocker, NULL);
+    taskforge_future_release(cleanup_blocker);
+    assert(atomic_load(&g_cleanup_calls) == 1);
+    printf("  [PASS] Cancelled queued task arguments were reclaimed by cleanup callback.\n");
 
     taskforge_pool_destroy(pool);
     printf("[PASS] test_futures completed successfully!\n\n");
