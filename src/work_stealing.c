@@ -30,6 +30,7 @@ void ws_deque_destroy(ws_deque_t* deque) {
     if (deque->buffer) {
         while (deque->count > 0) {
             taskforge_task_t* t = &deque->buffer[deque->top];
+            if (t->cleanup) t->cleanup(t->arg);
             if (t->future) {
                 future_fail(t->future, TASKFORGE_ERR_SHUTDOWN);
             }
