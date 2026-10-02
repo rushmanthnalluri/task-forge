@@ -232,6 +232,15 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
         return NULL;
     }
 
+    if (cfg.num_workers > SIZE_MAX / sizeof(worker_thread_t)) {
+        queue_destroy(pool->queue);
+        if (pool->logger) taskforge_logger_destroy(pool->logger);
+        pthread_cond_destroy(&pool->shutdown_cond);
+        pthread_mutex_destroy(&pool->shutdown_mutex);
+        free(pool);
+        return NULL;
+    }
+
     pool->workers = (worker_thread_t*)calloc(cfg.num_workers, sizeof(worker_thread_t));
     if (!pool->workers) {
         queue_destroy(pool->queue);
@@ -244,7 +253,12 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
 
     size_t initialized_deques = 0;
     if (cfg.enable_work_stealing) {
-        size_t per_worker_capacity = (cfg.queue_capacity / cfg.num_workers) + 64;
+        size_t per_worker_capacity = cfg.queue_capacity / cfg.num_workers;
+        if (per_worker_capacity > SIZE_MAX - 64) {
+            per_worker_capacity = SIZE_MAX;
+        } else {
+            per_worker_capacity += 64;
+        }
         for (size_t i = 0; i < cfg.num_workers; i++) {
             pool->workers[i].id = i;
             pool->workers[i].pool = pool;
