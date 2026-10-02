@@ -272,9 +272,9 @@ int workload_spec_execute(taskforge_pool_t* pool, const workload_spec_t* spec, b
         }
         *item = spec->tasks[i];
 
-        taskforge_future_t* fut = taskforge_submit_prio(pool, execute_parsed_task, item, item->prio);
+        taskforge_future_t* fut = taskforge_submit_prio_with_cleanup(pool, execute_parsed_task, item, item->prio, free);
         if (!fut) {
-            free(item);
+            /* submit_with_cleanup owns cleanup on post-creation rejection. */
             status = -1;
         }
 
