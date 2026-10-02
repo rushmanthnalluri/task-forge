@@ -162,6 +162,11 @@ int main(int argc, char** argv) {
             sscanf(line, "map %zu", &count);
             if (count == 0) count = 10;
 
+            if (count > SIZE_MAX / sizeof(void*)) {
+                printf("[Error] Map count is too large.\\n");
+                continue;
+            }
+
             void** items = (void**)malloc(sizeof(void*) * count);
             void** results = (void**)malloc(sizeof(void*) * count);
             if (!items || !results) {
