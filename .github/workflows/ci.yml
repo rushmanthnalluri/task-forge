@@ -6,9 +6,15 @@ on:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: taskforge-ci-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-and-test:
+  build-test:
+    name: Build, tests, and CLI
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Build
@@ -17,15 +23,43 @@ jobs:
         run: make test
       - name: CLI smoke test
         run: printf 'status\nbench 2 100\nexit\n' | ./bin/taskforge_cli 2
-      - name: AddressSanitizer and UBSan
+
+  asan-ubsan:
+    name: AddressSanitizer and UBSan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sanitizer suite
         run: make asan
+
+  million-soak:
+    name: One-million-task soak
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
       - name: One-million-task soak
         run: make test-million
-      - name: ThreadSanitizer
+
+  tsan:
+    name: ThreadSanitizer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: ThreadSanitizer suite
         run: make tsan
+
+  valgrind:
+    name: Valgrind Memcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
       - name: Install Valgrind
         run: |
           sudo apt-get update
           sudo apt-get install -y valgrind
-      - name: Valgrind
+      - name: Valgrind regression suite
         run: make valgrind
