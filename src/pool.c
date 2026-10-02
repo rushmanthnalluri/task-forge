@@ -347,12 +347,14 @@ taskforge_future_t* taskforge_submit(taskforge_pool_t* pool, taskforge_task_fn f
     return taskforge_submit_prio(pool, fn, arg, TASKFORGE_PRIO_NORMAL);
 }
 
-taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool,
-                                         taskforge_task_fn fn,
-                                         void* arg,
-                                         taskforge_task_priority_t prio) {
+taskforge_future_t* taskforge_try_submit_with_cleanup(taskforge_pool_t* pool,
+                                                       taskforge_task_fn fn,
+                                                       void* arg,
+                                                       taskforge_task_priority_t prio,
+                                                       taskforge_task_cleanup_fn cleanup) {
     if (!pool || !fn || !valid_priority(prio) || atomic_load(&pool->shutdown_started)) {
         if (pool) atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
         return NULL;
     }
 
@@ -360,6 +362,7 @@ taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool,
     taskforge_future_t* future = future_create(id);
     if (!future) {
         atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
         return NULL;
     }
 
@@ -369,11 +372,59 @@ taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool,
     task.arg = arg;
     task.future = future;
     task.prio = prio;
-    task.cleanup = NULL;
+    task.cleanup = cleanup;
 
     taskforge_status_t status = queue_try_push(pool->queue, &task);
     if (status != TASKFORGE_OK) {
         atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
+        future_release(future);
+        future_release(future);
+        return NULL;
+    }
+
+    return future;
+}
+
+taskforge_future_t* taskforge_try_submit(taskforge_pool_t* pool,
+                                         taskforge_task_fn fn,
+                                         void* arg,
+                                         taskforge_task_priority_t prio) {
+    return taskforge_try_submit_with_cleanup(pool, fn, arg, prio, NULL);
+}
+
+taskforge_future_t* taskforge_submit_timeout_with_cleanup(taskforge_pool_t* pool,
+                                             taskforge_task_fn fn,
+                                             void* arg,
+                                             taskforge_task_priority_t prio,
+                                             uint32_t timeout_ms,
+                                             taskforge_task_cleanup_fn cleanup) {
+    if (!pool || !fn || !valid_priority(prio) || atomic_load(&pool->shutdown_started)) {
+        if (pool) atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
+        return NULL;
+    }
+
+    uint64_t id = atomic_fetch_add(&pool->next_task_id, 1);
+    taskforge_future_t* future = future_create(id);
+    if (!future) {
+        atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
+        return NULL;
+    }
+
+    taskforge_task_t task;
+    task.task_id = id;
+    task.fn = fn;
+    task.arg = arg;
+    task.future = future;
+    task.prio = prio;
+    task.cleanup = cleanup;
+
+    taskforge_status_t status = queue_push_timeout(pool->queue, &task, timeout_ms);
+    if (status != TASKFORGE_OK) {
+        atomic_fetch_add(&pool->rejected_tasks, 1);
+        if (cleanup) cleanup(arg);
         future_release(future);
         future_release(future);
         return NULL;
@@ -387,35 +438,7 @@ taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool,
                                              void* arg,
                                              taskforge_task_priority_t prio,
                                              uint32_t timeout_ms) {
-    if (!pool || !fn || !valid_priority(prio) || atomic_load(&pool->shutdown_started)) {
-        if (pool) atomic_fetch_add(&pool->rejected_tasks, 1);
-        return NULL;
-    }
-
-    uint64_t id = atomic_fetch_add(&pool->next_task_id, 1);
-    taskforge_future_t* future = future_create(id);
-    if (!future) {
-        atomic_fetch_add(&pool->rejected_tasks, 1);
-        return NULL;
-    }
-
-    taskforge_task_t task;
-    task.task_id = id;
-    task.fn = fn;
-    task.arg = arg;
-    task.future = future;
-    task.prio = prio;
-    task.cleanup = NULL;
-
-    taskforge_status_t status = queue_push_timeout(pool->queue, &task, timeout_ms);
-    if (status != TASKFORGE_OK) {
-        atomic_fetch_add(&pool->rejected_tasks, 1);
-        future_release(future);
-        future_release(future);
-        return NULL;
-    }
-
-    return future;
+    return taskforge_submit_timeout_with_cleanup(pool, fn, arg, prio, timeout_ms, NULL);
 }
 
 static bool caller_is_worker(taskforge_pool_t* pool) {
