@@ -9,6 +9,7 @@ static atomic_int g_executed_tasks = 0;
 static taskforge_pool_t* g_self_shutdown_pool = NULL;
 static atomic_int g_self_shutdown_rc = TASKFORGE_OK;
 static atomic_int g_cleanup_calls = 0;
+static atomic_bool g_local_task_started = false;
 
 static void cleanup_arg(void* arg) {
     free(arg);
@@ -45,6 +46,13 @@ static void* immediate_blocker(void* arg) {
     (void)arg;
     usleep(200000);
     atomic_fetch_add(&g_executed_tasks, 1);
+    return NULL;
+}
+
+static void* local_deque_blocker(void* arg) {
+    atomic_store(&g_local_task_started, true);
+    usleep(100000);
+    free(arg);
     return NULL;
 }
 
