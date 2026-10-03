@@ -66,8 +66,8 @@ test: all
 	@echo "  Running TaskForge Test Battery"
 	@echo "=========================================="
 	@set -e; for test in $(TEST_BINS); do \
-		echo "Running $test"; \
-		"$test"; \
+		echo "Running ${test}"; \
+		"${test}"; \
 	done
 	@echo "=========================================="
 	@echo "  ALL DISCOVERED TESTS PASSED"
@@ -91,8 +91,8 @@ asan:
 	@$(MAKE) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" all
 	@echo "Running tests with AddressSanitizer..."
 	@set -e; for test in $(TEST_BINS); do \
-		echo "Running $test"; \
-		"$test"; \
+		echo "Running ${test}"; \
+		"${test}"; \
 	done
 
 tsan: CFLAGS += -fsanitize=thread -g -O1
@@ -103,8 +103,8 @@ tsan:
 	@echo "Running tests with ThreadSanitizer..."
 	@sysctl -w vm.mmap_rnd_bits=28 2>/dev/null || true
 	@set -e; for test in $(TEST_BINS); do \
-		echo "Running $test"; \
-		"$test"; \
+		echo "Running ${test}"; \
+		"${test}"; \
 	done
 
 valgrind:
