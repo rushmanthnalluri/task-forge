@@ -3,6 +3,26 @@
 #include <assert.h>
 #include "taskforge/taskforge.h"
 
+static taskforge_pool_t* g_nested_pool = NULL;
+
+static void* nested_map_task(void* arg) {
+    intptr_t v = (intptr_t)arg;
+    return (void*)(v + 10);
+}
+
+static void* reentrant_map_task(void* arg) {
+    void** results = calloc(3, sizeof(*results));
+    void* items[3] = {(void*)1, (void*)2, (void*)3};
+    assert(results != NULL);
+    taskforge_status_t s = taskforge_map(g_nested_pool, nested_map_task, items, 3, results);
+    assert(s == TASKFORGE_OK);
+    assert((intptr_t)results[0] == 11);
+    assert((intptr_t)results[1] == 12);
+    assert((intptr_t)results[2] == 13);
+    free(results);
+    return (void*)1;
+}
+
 static void* multiply_by_five(void* arg) {
     intptr_t v = (intptr_t)arg;
     return (void*)(v * 5);
@@ -37,6 +57,24 @@ int main(void) {
         assert((intptr_t)results[i] == expected);
     }
     printf("  [PASS] taskforge_map mapped %zu elements correctly in parallel.\n", count);
+
+    /*
+     * Regression: a taskforge_map call from a worker must not deadlock when
+     * that worker is the only worker available to execute the nested tasks.
+     */
+    taskforge_pool_config_t nested_cfg = cfg;
+    nested_cfg.num_workers = 1;
+    taskforge_pool_t* nested_pool = taskforge_pool_create(&nested_cfg);
+    assert(nested_pool != NULL);
+    g_nested_pool = nested_pool;
+    taskforge_future_t* nested_future = taskforge_submit(nested_pool, reentrant_map_task, NULL);
+    assert(nested_future != NULL);
+    assert(taskforge_future_wait(nested_future, NULL) == TASKFORGE_OK);
+    taskforge_future_release(nested_future);
+    taskforge_pool_shutdown(nested_pool, true);
+    taskforge_pool_destroy(nested_pool);
+    g_nested_pool = NULL;
+    printf("  [PASS] Reentrant taskforge_map avoids single-worker deadlock.\n");
 
     free(items);
     free(results);
