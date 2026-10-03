@@ -51,7 +51,7 @@ static void* immediate_blocker(void* arg) {
 
 static void* local_deque_blocker(void* arg) {
     atomic_store(&g_local_task_started, true);
-    usleep(100000);
+    usleep(1000000);
     free(arg);
     return NULL;
 }
@@ -178,6 +178,7 @@ int main(void) {
         usleep(1000);
     }
     assert(atomic_load(&g_local_task_started));
+    assert(taskforge_future_get_state(ws_futs[0]) == TASKFORGE_FUTURE_RUNNING);
 
     int cleanup_before_local = atomic_load(&g_cleanup_calls);
     assert(taskforge_pool_shutdown(ws_pool, false) == TASKFORGE_OK);
