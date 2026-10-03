@@ -8,6 +8,7 @@
 #include "taskforge/taskforge.h"
 
 #define BENCH_TASKS 100000
+#define BENCH_REPEATS 3
 
 static void* compute_workload(void* arg) {
     intptr_t v = (intptr_t)arg;
@@ -18,49 +19,55 @@ static void* compute_workload(void* arg) {
 static double run_benchmark(size_t workers, size_t task_count, bool work_stealing) {
     if (task_count == 0 || task_count > SIZE_MAX / sizeof(taskforge_future_t*)) return 0.0;
 
-    taskforge_pool_config_t cfg;
-    taskforge_default_config(&cfg);
-    cfg.num_workers = workers;
-    cfg.queue_capacity = 8192;
-    cfg.enable_work_stealing = work_stealing;
+    double total_throughput = 0.0;
+    for (size_t repeat = 0; repeat < BENCH_REPEATS; repeat++) {
+        taskforge_pool_config_t cfg;
+        taskforge_default_config(&cfg);
+        cfg.num_workers = workers;
+        cfg.queue_capacity = 8192;
+        cfg.enable_work_stealing = work_stealing;
 
-    taskforge_pool_t* pool = taskforge_pool_create(&cfg);
-    if (!pool) return 0.0;
+        taskforge_pool_t* pool = taskforge_pool_create(&cfg);
+        if (!pool) return 0.0;
 
-    taskforge_future_t** futs = malloc(sizeof(*futs) * task_count);
-    if (!futs) {
-        taskforge_pool_shutdown(pool, false);
-        taskforge_pool_destroy(pool);
-        return 0.0;
-    }
-
-    struct timespec t0, t1;
-    clock_gettime(CLOCK_MONOTONIC, &t0);
-
-    size_t submitted = 0;
-    bool failed = false;
-    for (size_t i = 0; i < task_count; i++) {
-        futs[i] = taskforge_submit(pool, compute_workload, (void*)(intptr_t)i);
-        if (!futs[i]) {
-            failed = true;
-            break;
+        taskforge_future_t** futs = malloc(sizeof(*futs) * task_count);
+        if (!futs) {
+            taskforge_pool_shutdown(pool, false);
+            taskforge_pool_destroy(pool);
+            return 0.0;
         }
-        submitted++;
+
+        struct timespec t0, t1;
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+
+        size_t submitted = 0;
+        bool failed = false;
+        for (size_t i = 0; i < task_count; i++) {
+            futs[i] = taskforge_submit(pool, compute_workload, (void*)(intptr_t)i);
+            if (!futs[i]) {
+                failed = true;
+                break;
+            }
+            submitted++;
+        }
+
+        for (size_t i = 0; i < submitted; i++) {
+            if (taskforge_future_wait(futs[i], NULL) != TASKFORGE_OK) failed = true;
+            taskforge_future_release(futs[i]);
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        free(futs);
+
+        double sec = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
+        taskforge_pool_shutdown(pool, true);
+        taskforge_pool_destroy(pool);
+
+        if (failed || submitted != task_count || sec <= 0.0) return 0.0;
+        total_throughput += (double)task_count / sec;
     }
 
-    for (size_t i = 0; i < submitted; i++) {
-        if (taskforge_future_wait(futs[i], NULL) != TASKFORGE_OK) failed = true;
-        taskforge_future_release(futs[i]);
-    }
-
-    clock_gettime(CLOCK_MONOTONIC, &t1);
-    free(futs);
-
-    double sec = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
-    taskforge_pool_destroy(pool);
-
-    if (failed || submitted != task_count || sec <= 0.0) return 0.0;
-    return (double)task_count / sec;
+    return total_throughput / (double)BENCH_REPEATS;
 }
 
 int main(int argc, char** argv) {
@@ -78,7 +85,7 @@ int main(int argc, char** argv) {
 
     printf("==========================================================================\n");
     printf("  TaskForge Scalability & Contention Analysis Benchmark\n");
-    printf("  Tasks per run: %zu\n", task_count);
+    printf("  Tasks per run: %zu | Repeats: %d\n", task_count);
     printf("==========================================================================\n");
     printf("%-10s | %-16s | %-16s | %-10s\n", "Workers", "Throughput (T/s)", "Speedup (vs 1)", "Efficiency");
     printf("--------------------------------------------------------------------------\n");
