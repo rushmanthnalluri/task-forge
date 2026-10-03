@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <stdint.h>
+#include <stdatomic.h>
 #include "taskforge/taskforge.h"
 
 static void* quick_work(void* arg) {
@@ -14,6 +16,7 @@ static void* quick_work(void* arg) {
 typedef struct {
     taskforge_pool_t* pool;
     int iterations;
+    atomic_size_t* accepted;
 } stress_thread_arg_t;
 
 static void* stress_producer(void* arg) {
@@ -21,6 +24,7 @@ static void* stress_producer(void* arg) {
     for (int i = 0; i < s->iterations; i++) {
         taskforge_future_t* fut = taskforge_submit(s->pool, quick_work, (void*)(intptr_t)i);
         if (fut) {
+            atomic_fetch_add(s->accepted, 1);
             if (i % 7 == 0) {
                 /* Cancel some tasks randomly */
                 taskforge_future_cancel(fut);
@@ -54,16 +58,21 @@ int main(void) {
     int num_producers = 4;
     pthread_t producers[num_producers];
     stress_thread_arg_t args[num_producers];
+    atomic_size_t accepted;
+    atomic_init(&accepted, 0);
 
     for (int i = 0; i < num_producers; i++) {
         args[i].pool = pool;
         args[i].iterations = 1000;
+        args[i].accepted = &accepted;
         assert(pthread_create(&producers[i], NULL, stress_producer, &args[i]) == 0);
     }
 
     for (int i = 0; i < num_producers; i++) {
         pthread_join(producers[i], NULL);
     }
+
+    assert(atomic_load(&accepted) == (size_t)num_producers * 1000U);
 
     taskforge_pool_shutdown(pool, true);
     taskforge_pool_destroy(pool);
