@@ -89,9 +89,9 @@ int main(void) {
     /* 4. Test blocking unblock: start consumer thread to pop */
     consumer_arg_t c_arg = { .q = q, .items_to_consume = TEST_CAPACITY, .consumed_count = 0 };
     pthread_t c_tid;
-    pthread_create(&c_tid, NULL, consumer_thread, &c_arg);
+    assert(pthread_create(&c_tid, NULL, consumer_thread, &c_arg) == 0);
 
-    pthread_join(c_tid, NULL);
+    assert(pthread_join(c_tid, NULL) == 0);
     assert(c_arg.consumed_count == TEST_CAPACITY);
     assert(queue_is_empty(q));
     printf("  [PASS] Consumer drained all %d items, queue is now empty.\n", TEST_CAPACITY);
