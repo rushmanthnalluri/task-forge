@@ -272,6 +272,10 @@ int main(int argc, char** argv) {
                 printf("[Error] bench requires positive worker and task counts in range.\n");
                 continue;
             }
+            if (tasks > SIZE_MAX / sizeof(taskforge_future_t*)) {
+                printf("[Error] Task count is too large.\n");
+                continue;
+            }
             taskforge_pool_config_t bench_cfg = config;
             bench_cfg.num_workers = workers;
             bench_cfg.log_file_path = NULL;
@@ -283,12 +287,6 @@ int main(int argc, char** argv) {
             printf("[Bench] Running %zu tasks with %zu workers...\n", tasks, workers);
             struct timespec t0, t1;
             clock_gettime(CLOCK_MONOTONIC, &t0);
-            if (tasks > SIZE_MAX / sizeof(taskforge_future_t*)) {
-                printf("[Error] Task count is too large.\n");
-                taskforge_pool_shutdown(bench_pool, false);
-                taskforge_pool_destroy(bench_pool);
-                continue;
-            }
             taskforge_future_t** futs = malloc(sizeof(*futs) * tasks);
             if (!futs) {
                 printf("[Error] Memory allocation failed for benchmark.\n");
@@ -333,6 +331,9 @@ int main(int argc, char** argv) {
             printf("[Shutdown] Shutting down pool (%s)...\n", graceful ? "graceful" : "immediate");
             int shutdown_rc = taskforge_pool_shutdown(g_pool, graceful);
             printf("[Shutdown] %s.\n", shutdown_rc == TASKFORGE_OK ? "Done" : "Rejected");
+            if (shutdown_rc == TASKFORGE_OK) {
+                break;
+            }
         } else if (strcmp(cmd, "exit") == 0 || strcmp(cmd, "quit") == 0) {
             break;
         } else {
