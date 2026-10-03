@@ -73,15 +73,18 @@ static void execute_task_item(worker_thread_t* self, taskforge_task_t* task) {
     double duration_ms = (t_end.tv_sec - t_start.tv_sec) * 1000.0 +
                          (t_end.tv_nsec - t_start.tv_nsec) / 1000000.0;
 
-    future_complete(task->future, result);
-
     if (pool->logger) {
         taskforge_log_task(pool->logger, task->task_id, self->id,
                            TASKFORGE_FUTURE_COMPLETED, duration_ms, result, 0);
     }
 
+    /*
+     * Publish pool statistics before completing the future. A caller that
+     * wakes from future_wait() must observe the task as completed in stats.
+     */
     atomic_fetch_sub(&pool->active_workers, 1);
     atomic_fetch_add(&pool->completed_tasks, 1);
+    future_complete(task->future, result);
 }
 
 static void* worker_loop(void* arg) {
