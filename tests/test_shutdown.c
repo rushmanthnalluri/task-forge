@@ -10,6 +10,7 @@ static taskforge_pool_t* g_self_shutdown_pool = NULL;
 static atomic_int g_self_shutdown_rc = TASKFORGE_OK;
 static atomic_int g_cleanup_calls = 0;
 static atomic_bool g_local_task_started = false;
+static atomic_bool g_prefetch_gate_started = false;
 
 static void cleanup_arg(void* arg) {
     free(arg);
@@ -36,8 +37,8 @@ static void* self_shutdown_task(void* arg) {
 }
 
 static void* counting_task(void* arg) {
-    (void)arg;
     usleep(1000); /* 1ms work */
+    free(arg);
     atomic_fetch_add(&g_executed_tasks, 1);
     return NULL;
 }
@@ -46,6 +47,13 @@ static void* immediate_blocker(void* arg) {
     (void)arg;
     usleep(200000);
     atomic_fetch_add(&g_executed_tasks, 1);
+    return NULL;
+}
+
+static void* prefetch_gate(void* arg) {
+    (void)arg;
+    atomic_store(&g_prefetch_gate_started, true);
+    usleep(200000);
     return NULL;
 }
 
@@ -148,23 +156,29 @@ int main(void) {
     printf("  [PASS] Immediate shutdown failed queued work and reclaimed queued arguments.\n");
 
     /* 3. Verify immediate shutdown also cleans tasks already prefetched into a worker-local deque. */
-    printf("  [Step] Testing immediate shutdown of prefetched local-deque work...\n");
+    printf("  [Step] Testing immediate shutdown of prefetched local-deque work...\\n");
     taskforge_pool_config_t ws_cfg = cfg;
     ws_cfg.num_workers = 1;
     ws_cfg.enable_work_stealing = true;
     taskforge_pool_t* ws_pool = taskforge_pool_create(&ws_cfg);
     assert(ws_pool != NULL);
     atomic_store(&g_local_task_started, false);
+    atomic_store(&g_prefetch_gate_started, false);
 
-    taskforge_future_t* ws_blocker = taskforge_submit(ws_pool, immediate_blocker, NULL);
-    assert(ws_blocker != NULL);
+    /* Hold the only worker long enough to enqueue the complete prefetch batch. */
+    taskforge_future_t* ws_gate = taskforge_submit(ws_pool, prefetch_gate, NULL);
+    assert(ws_gate != NULL);
+    for (int i = 0; i < 1000 && !atomic_load(&g_prefetch_gate_started); i++) {
+        usleep(1000);
+    }
+    assert(atomic_load(&g_prefetch_gate_started));
 
     taskforge_future_t* ws_futs[5];
     for (int i = 0; i < 5; i++) {
         int* owned = malloc(sizeof(*owned));
         assert(owned != NULL);
         *owned = i;
-        if (i == 2) {
+        if (i == 3) {
             ws_futs[i] = taskforge_submit_prio_with_cleanup(
                 ws_pool, local_deque_blocker, owned, TASKFORGE_PRIO_NORMAL, cleanup_arg);
         } else {
@@ -178,26 +192,26 @@ int main(void) {
         usleep(1000);
     }
     assert(atomic_load(&g_local_task_started));
-    assert(taskforge_future_get_state(ws_futs[2]) == TASKFORGE_FUTURE_RUNNING);
+    assert(taskforge_future_get_state(ws_futs[3]) == TASKFORGE_FUTURE_RUNNING);
 
     int cleanup_before_local = atomic_load(&g_cleanup_calls);
     assert(taskforge_pool_shutdown(ws_pool, false) == TASKFORGE_OK);
 
-    assert(taskforge_future_wait(ws_futs[2], NULL) == TASKFORGE_OK);
+    assert(taskforge_future_wait(ws_futs[3], NULL) == TASKFORGE_OK);
     for (int i = 0; i < 5; i++) {
-        if (i == 2) continue;
+        if (i == 3) continue;
         assert(taskforge_future_wait(ws_futs[i], NULL) == TASKFORGE_ERR_FAILED);
         assert(taskforge_future_get_error(ws_futs[i]) == TASKFORGE_ERR_SHUTDOWN);
     }
     for (int i = 0; i < 5; i++) {
         taskforge_future_release(ws_futs[i]);
     }
-    assert(taskforge_future_wait(ws_blocker, NULL) == TASKFORGE_OK);
-    taskforge_future_release(ws_blocker);
+    assert(taskforge_future_wait(ws_gate, NULL) == TASKFORGE_OK);
+    taskforge_future_release(ws_gate);
     taskforge_pool_destroy(ws_pool);
 
-    assert(atomic_load(&g_cleanup_calls) == cleanup_before_local + 4);
-    printf("  [PASS] Immediate shutdown reclaimed global and worker-local prefetched arguments exactly once.\n");
+    assert(atomic_load(&g_cleanup_calls) == cleanup_before_local + 3);
+    printf("  [PASS] Immediate shutdown reclaimed global and worker-local prefetched arguments exactly once.\\n");
 
     printf("[PASS] test_shutdown completed successfully!\n\n");
     return 0;
