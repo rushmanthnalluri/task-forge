@@ -37,7 +37,6 @@ struct taskforge_pool {
     atomic_bool shutdown_started;
     atomic_bool shutdown_complete;
     atomic_bool immediate_shutdown;
-    atomic_size_t rr_worker_idx;
     pthread_mutex_t shutdown_mutex;
     pthread_cond_t shutdown_cond;
     size_t created_workers;
@@ -127,12 +126,18 @@ static void* worker_loop(void* arg) {
                     for (int b = 0; b < 3; b++) {
                         if (queue_try_pop(pool->queue, &prefetch_task)) {
                             if (!ws_deque_push_bottom(&self->deque, &prefetch_task)) {
-                                /* Deque full: return it to the bounded queue, respecting shutdown. */
-                                if (queue_push(pool->queue, &prefetch_task) != TASKFORGE_OK) {
+                                /*
+                                 * The task has already been removed from the global
+                                 * queue, so it must never be converted into a
+                                 * shutdown/failure result merely because the local
+                                 * deque is full. Execute it directly instead.
+                                 */
+                                if (atomic_load(&pool->immediate_shutdown)) {
                                     if (prefetch_task.cleanup) prefetch_task.cleanup(prefetch_task.arg);
                                     future_fail(prefetch_task.future, TASKFORGE_ERR_SHUTDOWN);
+                                } else {
+                                    execute_task_item(self, &prefetch_task);
                                 }
-                                break;
                             }
                         } else {
                             break;
@@ -209,7 +214,6 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
     atomic_init(&pool->shutdown_started, false);
     atomic_init(&pool->shutdown_complete, false);
     atomic_init(&pool->immediate_shutdown, false);
-    atomic_init(&pool->rr_worker_idx, 0);
     if (pthread_mutex_init(&pool->shutdown_mutex, NULL) != 0) { free(pool); return NULL; }
     if (pthread_cond_init(&pool->shutdown_cond, NULL) != 0) {
         pthread_mutex_destroy(&pool->shutdown_mutex);
