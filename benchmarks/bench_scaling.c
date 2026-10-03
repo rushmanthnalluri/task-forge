@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
 
     printf("==========================================================================\n");
     printf("  TaskForge Scalability & Contention Analysis Benchmark\n");
-    printf("  Tasks per run: %zu | Repeats: %d\n", task_count);
+    printf("  Tasks per run: %zu | Repeats: %d\n", task_count, BENCH_REPEATS);
     printf("==========================================================================\n");
     printf("%-10s | %-16s | %-16s | %-10s\n", "Workers", "Throughput (T/s)", "Speedup (vs 1)", "Efficiency");
     printf("--------------------------------------------------------------------------\n");
