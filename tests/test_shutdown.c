@@ -197,8 +197,10 @@ int main(void) {
     int cleanup_before_local = atomic_load(&g_cleanup_calls);
     assert(taskforge_pool_shutdown(ws_pool, false) == TASKFORGE_OK);
 
+    /* The first global task executes before the owner reaches its local deque. */
+    assert(taskforge_future_wait(ws_futs[0], NULL) == TASKFORGE_OK);
     assert(taskforge_future_wait(ws_futs[3], NULL) == TASKFORGE_OK);
-    for (int i = 0; i < 5; i++) {
+    for (int i = 1; i < 5; i++) {
         if (i == 3) continue;
         assert(taskforge_future_wait(ws_futs[i], NULL) == TASKFORGE_ERR_FAILED);
         assert(taskforge_future_get_error(ws_futs[i]) == TASKFORGE_ERR_SHUTDOWN);
