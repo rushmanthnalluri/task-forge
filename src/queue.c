@@ -7,6 +7,9 @@
 
 #define STARVATION_THRESHOLD 5
 
+static inline void ring_push_internal(ring_buffer_t* ring, const taskforge_task_t* task);
+static inline void ring_pop_internal(ring_buffer_t* ring, taskforge_task_t* out_task);
+
 taskforge_queue_t* queue_create(size_t capacity, bool enable_priority) {
     if (capacity == 0) capacity = 1024;
     if (capacity > SIZE_MAX / sizeof(taskforge_task_t)) return NULL;
