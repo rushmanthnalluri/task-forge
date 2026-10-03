@@ -24,6 +24,10 @@ jobs:
         run: make test
       - name: CLI smoke test
         run: printf 'status\nsubmit norm 0 21\nsubmit bad 0 1\nmap 4\nbench 2 100\nbench 0 10\nexit\n' | ./bin/taskforge_cli 2
+      - name: CLI shutdown smoke test
+        run: |
+          printf 'shutdown graceful\n' | ./bin/taskforge_cli 2
+          printf 'shutdown now\n' | ./bin/taskforge_cli 2
       - name: Benchmark smoke test
         run: ./bin/bench_scaling 10000
 
