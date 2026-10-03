@@ -164,7 +164,7 @@ int main(void) {
         int* owned = malloc(sizeof(*owned));
         assert(owned != NULL);
         *owned = i;
-        if (i == 0) {
+        if (i == 4) {
             ws_futs[i] = taskforge_submit_prio_with_cleanup(
                 ws_pool, local_deque_blocker, owned, TASKFORGE_PRIO_NORMAL, cleanup_arg);
         } else {
@@ -178,13 +178,13 @@ int main(void) {
         usleep(1000);
     }
     assert(atomic_load(&g_local_task_started));
-    assert(taskforge_future_get_state(ws_futs[0]) == TASKFORGE_FUTURE_RUNNING);
+    assert(taskforge_future_get_state(ws_futs[4]) == TASKFORGE_FUTURE_RUNNING);
 
     int cleanup_before_local = atomic_load(&g_cleanup_calls);
     assert(taskforge_pool_shutdown(ws_pool, false) == TASKFORGE_OK);
 
-    assert(taskforge_future_wait(ws_futs[0], NULL) == TASKFORGE_OK);
-    for (int i = 1; i < 5; i++) {
+    assert(taskforge_future_wait(ws_futs[4], NULL) == TASKFORGE_OK);
+    for (int i = 0; i < 4; i++) {
         assert(taskforge_future_wait(ws_futs[i], NULL) == TASKFORGE_ERR_FAILED);
         assert(taskforge_future_get_error(ws_futs[i]) == TASKFORGE_ERR_SHUTDOWN);
     }
