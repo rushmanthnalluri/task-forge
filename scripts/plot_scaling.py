@@ -59,13 +59,21 @@ def generate_plot(csv_path="benchmarks/scaling_results.csv", output_png="docs/sc
         ax1.legend()
 
         # Chart 2: Speedup and Efficiency
-        ax2.plot(workers, speedups, marker='s', linewidth=2.5, color='#ff7f0e', label='Speedup Factor')
-        ax2.plot(workers, workers, linestyle='--', color='#7f7f7f', alpha=0.7, label='Linear 1.0x Speedup')
+        ax2.plot(workers, speedups, marker='s', linewidth=2.5, label='Speedup Factor')
+        ax2.plot(workers, workers, linestyle='--', alpha=0.7, label='Linear 1.0x Speedup')
         ax2.set_title("Speedup vs. Worker Threads", fontsize=13, fontweight='bold')
         ax2.set_xlabel("Worker Thread Count", fontsize=11)
         ax2.set_ylabel("Speedup (x-fold)", fontsize=11)
         ax2.grid(True, linestyle=':', alpha=0.6)
-        ax2.legend()
+
+        efficiency_ax = ax2.twinx()
+        efficiency_ax.plot(workers, efficiencies, marker='^', linewidth=2.0, label='Efficiency (%)')
+        efficiency_ax.set_ylabel("Efficiency (%)")
+        efficiency_ax.set_ylim(bottom=0)
+
+        handles1, labels1 = ax2.get_legend_handles_labels()
+        handles2, labels2 = efficiency_ax.get_legend_handles_labels()
+        ax2.legend(handles1 + handles2, labels1 + labels2, loc='best')
 
         os.makedirs(os.path.dirname(output_png), exist_ok=True)
         plt.tight_layout()
