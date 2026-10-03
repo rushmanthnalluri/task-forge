@@ -6,6 +6,7 @@
 #include <stdatomic.h>
 
 static atomic_int g_cleanup_calls = 0;
+static atomic_bool g_blocker_started = false;
 static void cleanup_arg(void* arg) {
     free(arg);
     atomic_fetch_add(&g_cleanup_calls, 1);
@@ -15,6 +16,20 @@ static void* slow_task(void* arg) {
     int ms = (int)(intptr_t)arg;
     usleep(ms * 1000);
     return (void*)((intptr_t)arg * 3);
+}
+
+static void* blocking_task(void* arg) {
+    int ms = (int)(intptr_t)arg;
+    atomic_store_explicit(&g_blocker_started, true, memory_order_release);
+    usleep(ms * 1000);
+    return (void*)((intptr_t)arg * 3);
+}
+
+static void wait_for_blocker(void) {
+    for (int i = 0; i < 5000 && !atomic_load_explicit(&g_blocker_started, memory_order_acquire); i++) {
+        usleep(1000);
+    }
+    assert(atomic_load_explicit(&g_blocker_started, memory_order_acquire));
 }
 
 int main(void) {
@@ -82,9 +97,11 @@ int main(void) {
 
     /* 3. Task cancellation of queued task */
     /* Saturate worker with a 150ms task */
-    taskforge_future_t* blocker = taskforge_submit(pool, slow_task, (void*)(intptr_t)150);
+    atomic_store_explicit(&g_blocker_started, false, memory_order_release);
+    taskforge_future_t* blocker = taskforge_submit(pool, blocking_task, (void*)(intptr_t)150);
     assert(blocker != NULL);
-    /* Submit task while worker is occupied */
+    wait_for_blocker();
+    /* Submit task only after the single worker is definitely occupied. */
     taskforge_future_t* to_cancel = taskforge_submit(pool, slow_task, (void*)(intptr_t)50);
     assert(to_cancel != NULL);
 
@@ -105,8 +122,10 @@ int main(void) {
     taskforge_future_release(blocker);
 
     /* 4. Cancellation cleanup callback must reclaim queued task arguments. */
-    taskforge_future_t* cleanup_blocker = taskforge_submit(pool, slow_task, (void*)(intptr_t)150);
+    atomic_store_explicit(&g_blocker_started, false, memory_order_release);
+    taskforge_future_t* cleanup_blocker = taskforge_submit(pool, blocking_task, (void*)(intptr_t)150);
     assert(cleanup_blocker != NULL);
+    wait_for_blocker();
     int* owned_arg = malloc(sizeof(*owned_arg));
     assert(owned_arg != NULL);
     *owned_arg = 42;
@@ -134,9 +153,11 @@ int main(void) {
     timeout_cfg.queue_capacity = 1;
     taskforge_pool_t* timeout_pool = taskforge_pool_create(&timeout_cfg);
     assert(timeout_pool != NULL);
+    atomic_store_explicit(&g_blocker_started, false, memory_order_release);
     taskforge_future_t* timeout_blocker =
-        taskforge_submit(timeout_pool, slow_task, (void*)(intptr_t)150);
+        taskforge_submit(timeout_pool, blocking_task, (void*)(intptr_t)150);
     assert(timeout_blocker != NULL);
+    wait_for_blocker();
     taskforge_future_t* timeout_queued =
         taskforge_submit(timeout_pool, slow_task, (void*)(intptr_t)25);
     assert(timeout_queued != NULL);
