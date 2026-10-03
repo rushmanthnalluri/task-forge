@@ -8,6 +8,7 @@
 #include "taskforge/queue.h"
 #include "taskforge/work_stealing.h"
 #include "taskforge/log.h"
+#include "internal.h"
 
 static bool valid_priority(taskforge_task_priority_t prio) {
     return prio >= TASKFORGE_PRIO_LOW && prio <= TASKFORGE_PRIO_HIGH;
@@ -448,13 +449,17 @@ taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool,
     return taskforge_submit_timeout_with_cleanup(pool, fn, arg, prio, timeout_ms, NULL);
 }
 
-static bool caller_is_worker(taskforge_pool_t* pool) {
+bool taskforge_pool_is_worker_thread(taskforge_pool_t* pool) {
     if (!pool || !pool->workers) return false;
     pthread_t self = pthread_self();
     for (size_t i = 0; i < pool->created_workers; i++) {
         if (pthread_equal(self, pool->workers[i].thread)) return true;
     }
     return false;
+}
+
+static bool caller_is_worker(taskforge_pool_t* pool) {
+    return taskforge_pool_is_worker_thread(pool);
 }
 
 int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
