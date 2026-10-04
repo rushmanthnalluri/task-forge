@@ -204,15 +204,19 @@ taskforge_status_t queue_push_timeout(taskforge_queue_t* q, const taskforge_task
 static size_t select_pop_ring(taskforge_queue_t* q) {
     if (!q->enable_priority) return 0;
 
-    /* Starvation avoidance: if high priority has consumed STARVATION_THRESHOLD tasks in a row */
+    /*
+     * Starvation avoidance: after a bounded HIGH streak, service the
+     * lowest-priority tier that is waiting. Prefer LOW when present so a
+     * continuously populated NORMAL tier cannot starve LOW indefinitely.
+     */
     if (q->high_prio_streak >= STARVATION_THRESHOLD) {
-        if (q->ring[TASKFORGE_PRIO_NORMAL].count > 0) {
-            q->high_prio_streak = 0;
-            return TASKFORGE_PRIO_NORMAL;
-        }
         if (q->ring[TASKFORGE_PRIO_LOW].count > 0) {
             q->high_prio_streak = 0;
             return TASKFORGE_PRIO_LOW;
+        }
+        if (q->ring[TASKFORGE_PRIO_NORMAL].count > 0) {
+            q->high_prio_streak = 0;
+            return TASKFORGE_PRIO_NORMAL;
         }
     }
 
