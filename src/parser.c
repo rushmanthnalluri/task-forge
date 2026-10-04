@@ -236,7 +236,7 @@ workload_spec_t* workload_spec_parse_file(const char* filepath) {
     }
 
     size_t rd = fread(buf, 1, (size_t)sz, f);
-    if (ferror(f)) {
+    if (ferror(f) || rd != (size_t)sz) {
         free(buf);
         fclose(f);
         return NULL;
@@ -292,7 +292,14 @@ int workload_spec_execute(taskforge_pool_t* pool, const workload_spec_t* spec, b
             if (!futures[i]) continue;
             void* res = NULL;
             taskforge_status_t wait_status = taskforge_future_wait(futures[i], &res);
-            if (wait_status != TASKFORGE_OK && status == 0) status = (int)wait_status;
+            if (wait_status != TASKFORGE_OK && status == 0) {
+                if (wait_status == TASKFORGE_ERR_FAILED) {
+                    int error_code = taskforge_future_get_error(futures[i]);
+                    status = error_code != 0 ? error_code : (int)wait_status;
+                } else {
+                    status = (int)wait_status;
+                }
+            }
             taskforge_future_release(futures[i]);
         }
         free(futures);
