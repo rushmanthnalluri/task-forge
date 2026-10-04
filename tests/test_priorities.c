@@ -54,6 +54,14 @@ int main(void) {
         assert(low_futs[i] != NULL);
     }
 
+    /* Submit 5 NORMAL priority tasks (IDs 301..305). */
+    taskforge_future_t* normal_futs[5];
+    for (int i = 0; i < 5; i++) {
+        normal_futs[i] = taskforge_submit_prio(
+            pool, ordered_task, (void*)(intptr_t)(301 + i), TASKFORGE_PRIO_NORMAL);
+        assert(normal_futs[i] != NULL);
+    }
+
     /* Submit 5 HIGH priority tasks (IDs 201..205). */
     taskforge_future_t* high_futs[5];
     for (int i = 0; i < 5; i++) {
@@ -70,6 +78,10 @@ int main(void) {
         taskforge_future_release(high_futs[i]);
     }
     for (int i = 0; i < 5; i++) {
+        taskforge_future_wait(normal_futs[i], NULL);
+        taskforge_future_release(normal_futs[i]);
+    }
+    for (int i = 0; i < 5; i++) {
         taskforge_future_wait(low_futs[i], NULL);
         taskforge_future_release(low_futs[i]);
     }
@@ -81,8 +93,8 @@ int main(void) {
     }
     printf("\n");
 
-    /* Verify HIGH tasks are prioritized, while starvation avoidance yields to LOW. */
-    assert(g_order_count == 10);
+    /* Verify HIGH tasks are prioritized, while LOW cannot starve behind NORMAL. */
+    assert(g_order_count == 15);
     assert(g_exec_order[0] >= 201 && g_exec_order[0] <= 205);
     assert(g_exec_order[1] >= 201 && g_exec_order[1] <= 205);
 
@@ -94,6 +106,7 @@ int main(void) {
         }
     }
     assert(first_low <= 5);
+    assert(first_low < g_order_count);
     pthread_mutex_unlock(&g_log_mutex);
 
     printf("  [PASS] High-priority dispatch and starvation avoidance were verified.\n");
