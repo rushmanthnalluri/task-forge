@@ -51,7 +51,7 @@ The queue is protected by a single POSIX mutex (`mutex`) and coordinated via two
   ```
   *Rationale*: POSIX allows spurious wakeups (`EINTR` or scheduler wakeups without explicit signal). Furthermore, under high multi-producer contention, another producer may claim the empty slot between signal delivery and mutex re-acquisition. A `while` loop guarantees correctness against lost and spurious wakeups.
 * **Capacity Invariant**: `0 <= queue->total_count <= queue->total_capacity` holds at all times while the mutex is held or released.
-* **FIFO & Priority Behavior**: Within a given priority tier, tasks are popped in FIFO order. Across tiers, the global queue selects `HIGH` before `NORMAL` and `LOW`, except after the starvation threshold yields a lower tier. When work stealing is enabled, tasks already prefetched into local deques are independent of later global-queue priority arrivals.
+* **FIFO & Priority Behavior**: Within a given priority tier, tasks are popped in FIFO order. Across tiers, the global queue selects `HIGH` before `NORMAL` and `LOW`; after the HIGH streak reaches the starvation threshold, it yields to the lowest waiting tier, preventing LOW from being starved by a continuously populated NORMAL tier. When work stealing is enabled, tasks already prefetched into local deques are independent of later global-queue priority arrivals.
 
 ---
 
