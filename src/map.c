@@ -49,7 +49,16 @@ taskforge_status_t taskforge_map(taskforge_pool_t* pool,
             /* If submission fails (e.g. pool shutting down or out of memory) */
             overall_status = TASKFORGE_ERR_FAILED;
             for (size_t j = 0; j < i; j++) {
-                taskforge_future_wait(futures[j], results ? &results[j] : NULL);
+                taskforge_status_t wait_status =
+                    taskforge_future_wait(futures[j], results ? &results[j] : NULL);
+                if (wait_status != TASKFORGE_OK && overall_status == TASKFORGE_OK) {
+                    if (wait_status == TASKFORGE_ERR_FAILED) {
+                        int error_code = taskforge_future_get_error(futures[j]);
+                        overall_status = error_code != 0 ? error_code : wait_status;
+                    } else {
+                        overall_status = wait_status;
+                    }
+                }
                 taskforge_future_release(futures[j]);
             }
             free(futures);
