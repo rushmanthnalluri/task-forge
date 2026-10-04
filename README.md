@@ -25,7 +25,7 @@ Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
   * Idle workers steal from other workers' top (FIFO) using `pthread_mutex_trylock`, reducing pressure on the global queue under workloads that benefit from local execution.
 * **Multi-Level Priority Scheduling with Starvation Avoidance**:
   * Supports `HIGH`, `NORMAL`, and `LOW` priority queues.
-  * Starvation prevention algorithm yields lower priorities after consecutive high-priority tasks.
+  * Starvation prevention bounds consecutive HIGH dispatches and, when multiple lower tiers are waiting, gives the lowest waiting tier a turn.
 * **Parallel Collection Mapping (`taskforge_map`)**:
   * High-level convenience API to map a function across an array of items in parallel and synchronize results.
 * **Workload Lexer & Parser (`workload_spec_t`)**:
@@ -180,15 +180,15 @@ Pressing `Ctrl+C` (`SIGINT`) triggers signal-safe graceful teardown, drains all 
 | Specification Requirement | Verification Target | Result | Status |
 |:---|:---|:---:|:---:|
 | **1 Million Tasks Soak Test** | `make test-million` | 1,000,000-task correctness/throughput soak test | **Verified in prior CI run; rerun after changes** |
-| **Bounded Queue Blocking** | `test_bounded_queue` | Bounded capacity blocks producers; `TASKFORGE_ERR_FULL` / timeout | **PASSED** |
-| **Future Protocol & Wait** | `test_futures` | Timed wait expires on slow tasks; normal wait retrieves results | **PASSED** |
-| **Task Cancellation** | `test_futures` | Queued tasks cancel cleanly; workers skip; waiters get `ERR_CANCELLED` | **PASSED** |
-| **Graceful Shutdown Drain** | `test_shutdown` | 100% in-flight tasks drain; new submissions rejected; 0 leaked | **PASSED** |
+| **Bounded Queue Blocking** | `test_bounded_queue` | Bounded capacity blocks producers; `TASKFORGE_ERR_FULL` / timeout | **Verified in prior CI run; rerun after changes** |
+| **Future Protocol & Wait** | `test_futures` | Timed wait expires on slow tasks; normal wait retrieves results | **Verified in prior CI run; rerun after changes** |
+| **Task Cancellation** | `test_futures` | Queued tasks cancel cleanly; workers skip; waiters get `ERR_CANCELLED` | **Verified in prior CI run; rerun after changes** |
+| **Graceful Shutdown Drain** | `test_shutdown` | 100% in-flight tasks drain; new submissions rejected; 0 leaked | **Verified in prior CI run; rerun after changes** |
 | **ThreadSanitizer** | `make tsan` | Runs the discovered test suite under TSan | **Verified in prior CI run; rerun after changes** |
 | **Valgrind Memcheck** | `make valgrind` | Runs regular regression test binaries under Memcheck; the 1M soak is covered separately | **Verified in prior CI run; rerun after changes** |
 | **ASan / UBSan** | `make asan` | Runs the discovered test suite under sanitizers | **Verified in prior CI run; rerun after changes** |
-| **Distinction: Work-Stealing** | `bench_stealing_vs_global` | Measures global-queue vs work-stealing throughput on the current host | **PASSED** |
-| **Scaling & Contention Curve** | `bench_scaling` | Generates host-specific CSV measurements and scaling data | **PASSED** |
+| **Distinction: Work-Stealing** | `bench_stealing_vs_global` | Measures global-queue vs work-stealing throughput on the current host | **Verified in prior CI run; rerun after changes** |
+| **Scaling & Contention Curve** | `bench_scaling` | Generates host-specific CSV measurements and scaling data | **Verified in prior CI run; rerun after changes** |
 
 ---
 
