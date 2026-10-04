@@ -32,7 +32,7 @@ TaskForge includes several features beyond the core specification:
    - Non-blocking theft using `pthread_mutex_trylock` can reduce contention on the global queue for workloads that benefit from local execution.
 2. **Prioritization with Starvation Avoidance**:
    - Multi-level priority queues (`HIGH`, `NORMAL`, `LOW`).
-   - Built-in starvation threshold counter provides a bounded high-priority streak in the global queue; local work-stealing queues can still affect global ordering.
+   - Built-in starvation threshold bounds the HIGH streak and yields to the lowest waiting global-queue tier; local work-stealing queues can still affect global ordering.
 3. **Task Cancellation**:
    - Cancellation of pending tasks prior to worker execution via `taskforge_future_cancel()`.
    - Worker skips execution cleanly; waiters receive `TASKFORGE_ERR_CANCELLED`.
