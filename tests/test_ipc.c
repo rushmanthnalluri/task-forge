@@ -21,7 +21,7 @@ static int echo_handler(const char* arg, size_t length, char* result, size_t cap
 static int multiline_handler(const char* arg, size_t length, char* result, size_t capacity,
                              int* error_code, void* context) {
     (void)arg; (void)length; (void)context;
-    static const char value[] = "first line\\nsecond line";
+    static const char value[] = "first line\nsecond line";
     if (sizeof(value) > capacity) { *error_code = TASKFORGE_ERR_NOMEM; return -1; }
     memcpy(result, value, sizeof(value));
     *error_code = 0;
@@ -149,7 +149,7 @@ int main(void) {
 
     server = start_server(path, handlers, 4, 1);
     assert(taskforge_ipc_client_call(path, "multiline", "", 0, result, sizeof(result), &error, 1000) == 0);
-    assert(strcmp(result, "first line\\nsecond line") == 0 && error == 0);
+    assert(strcmp(result, "first line\nsecond line") == 0 && error == 0);
     wait_server(path, server);
 
     server = start_server(path, handlers, 4, 1);
