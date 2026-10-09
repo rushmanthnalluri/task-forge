@@ -30,6 +30,10 @@ Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
   * High-level convenience API to map a function across an array of items in parallel and synchronize results.
 * **Workload Lexer & Parser (`workload_spec_t`)**:
   * Parses declarative workload specification scripts (`workload.spec`) to drive reproducible benchmark scenarios.
+* **Versioned Local IPC (`taskforge_ipc_*`)**:
+  * Uses a registered-handler Unix-domain socket protocol with bounded payloads, response-length framing, and a shared response-read deadline.
+  * Rejects unsupported protocol versions and malformed response framing; preserves non-socket paths instead of deleting them.
+  * Existing socket paths are not removed automatically. `taskforge_ipc_server_stop` only unlinks a socket pathname; it does not terminate a listening server.
 * **Signal-Safe Shutdown (`SIGINT`) & On-Disk Persistence**:
   * Gracefully catches `SIGINT` (Ctrl+C), drains accepted work, and joins workers.
   * Thread-safe disk logger recording timestamps, worker IDs, and durations to disk (`taskforge_tasks.log`).
