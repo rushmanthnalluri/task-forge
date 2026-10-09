@@ -115,6 +115,21 @@ static int raw_request(const char* path, const char* request) {
     return used > 0 && strncmp(response, "1 0 ", 4) == 0 ? 0 : -1;
 }
 
+static void test_reject_ambiguous_text_arguments(const char* path) {
+    char result[32];
+    int error = 0;
+    static const char newline_arg[] = "bad\narg";
+    static const char carriage_arg[] = "bad\rarg";
+    static const char nul_arg[] = {'a', '\0', 'b'};
+    assert(taskforge_ipc_client_call(path, "echo", newline_arg, sizeof(newline_arg) - 1,
+                                     result, sizeof(result), &error, 100) == -1);
+    assert(taskforge_ipc_client_call(path, "echo", carriage_arg, sizeof(carriage_arg) - 1,
+                                     result, sizeof(result), &error, 100) == -1);
+    assert(taskforge_ipc_client_call(path, "echo", nul_arg, sizeof(nul_arg),
+                                     result, sizeof(result), &error, 100) == -1);
+    puts("  [PASS] IPC rejects NUL/CR/LF request arguments before connecting.");
+}
+
 static void test_path_safety(const char* path, const taskforge_ipc_handler_t* handlers,
                              size_t count) {
     static const char marker[] = "keep this file";
@@ -233,6 +248,7 @@ int main(void) {
         {"slow", slow_handler, NULL},
         {"silent-fail", fail_without_error_handler, NULL}
     };
+    test_reject_ambiguous_text_arguments(path);
     test_path_safety(path, handlers, 5);
     test_total_response_deadline(path);
     pid_t server = start_server(path, handlers, 5, 1);
