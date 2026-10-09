@@ -27,7 +27,8 @@ typedef struct {
     size_t count;
 } ring_buffer_t;
 
-/* Thread-safe bounded task queue (with optional multi-priority) */
+/* Thread-safe bounded task queue (with optional multi-priority).
+ * Producer wake-up order is scheduler-dependent; no strict FIFO fairness is promised. */
 typedef struct taskforge_queue {
     pthread_mutex_t mutex;
     pthread_cond_t  not_empty;
@@ -42,6 +43,9 @@ typedef struct taskforge_queue {
 
     /* Starvation avoidance counter */
     size_t high_prio_streak;
+
+    /* Reserved legacy layout fields. Current queue admission no longer uses
+     * ticket/cancellation bookkeeping; these fields remain zeroed for ABI layout. */
     uint64_t producer_next_ticket;
     uint64_t producer_turn;
     uint64_t* canceled_tickets;
