@@ -331,6 +331,7 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
         queue_destroy(pool->queue);
         if (pool->logger) taskforge_logger_destroy(pool->logger);
         pthread_cond_destroy(&pool->shutdown_cond);
+        pthread_mutex_destroy(&pool->resize_mutex);
         pthread_mutex_destroy(&pool->shutdown_mutex);
         free(pool);
         return NULL;
