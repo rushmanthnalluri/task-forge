@@ -1,6 +1,6 @@
 # Research log
 
-**Updated:** 2026-10-09 22:52 IST
+**Updated:** 2026-10-09 22:59 IST
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -76,4 +76,12 @@
 - **Decision:** Compute a monotonic deadline for the inline path; check it before and after each callback; preserve a callback result if it completed; stop starting later callbacks after expiry and mark those items canceled. A callback already running cannot be interrupted safely, so the call may return after the nominal deadline.
 - **Alternatives rejected:** Submit-and-wait would reintroduce single-worker deadlock; forcibly canceling a running callback is unsafe; silently ignoring the timeout violates the API.
 - **Regression:** `tests/test_map.c` runs a worker-inline timeout map with a 50 ms deadline and 150 ms callback, expecting overall `TIMEOUT`, first item `OK`, and later item `CANCELLED`.
-- **Validation:** Targeted regression added; CI pending on branch `fix/inline-map-timeout`.
+- **Validation:** All five gates passed in [run 37966033793](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966033793); post-merge run 37966256429 also passed.
+
+
+## R-010 — Separate blocking queue consumption from work-stealing polling
+
+- **Question:** How can the queue preserve a blocking public contract while work-stealing workers periodically wake to inspect local deques?
+- **Repository-specific evidence:** `queue_pop` used a 50 ms timed wait and returned false on timeout. The worker loop relied on this polling behavior, but the public header described a blocking pop.
+- **Decision:** Implement true blocking `queue_pop` and add `queue_pop_timeout` for worker polling. Only the work-stealing worker path uses the timed variant; global-queue-only workers remain blocked until work or shutdown.
+- **Validation:** Regression tests cover timed idle return, blocking beyond 50 ms until a task is pushed, and release of a blocked pop during graceful shutdown. All five gates passed on PR #8 head `3e3ebe6918d92ced72b0ea7914523bfd508b651c` in [run 37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175); this documentation refresh requires revalidation.

@@ -201,7 +201,7 @@ static void* worker_loop(void* arg) {
 
             /* 4. If still nothing found, block on global queue */
             if (!found_task) {
-                if (!queue_pop(pool->queue, &task)) {
+                if (!queue_pop_timeout(pool->queue, &task, 50)) {
                     if (atomic_load(&pool->immediate_shutdown) ||
                         (atomic_load(&pool->shutdown_started) && !pool_has_queued_work(pool)) ||
                         worker_should_retire(self)) break;
