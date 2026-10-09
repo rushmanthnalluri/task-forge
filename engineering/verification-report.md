@@ -1,8 +1,8 @@
 # Verification report
 
-**Updated:** 2026-10-09 22:43 IST  
+**Updated:** 2026-10-09 22:44 IST  
 **Mission branch:** `mission/engineering-hardening-2026-10-09`  
-**Branch head at last confirmed write:** `1a013fe51bcc68281773c2360dce80fd4aa842b1` (queue tests); queue implementation/header commits `5f99571c39df7309693d3e445e1292dff46edef6` and `cce3ac33b1b5ff72d980ab1add95385e7a67e21c`.
+**Latest code/test commit:** `3298de8549f30bd2aa4ad77c6a65800fa6c59dca` (map timeout regression); **latest prior documentation commit:** `8adbc3746e4018fc589d7ce02b3b08a2a02b7100`. The combined branch includes resize, queue, map, IPC, README, and engineering records.
 
 ## Baseline checks observed
 
