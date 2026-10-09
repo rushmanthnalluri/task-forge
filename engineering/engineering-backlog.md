@@ -9,8 +9,8 @@ Status values: **Done on branch** means implemented but not yet CI-verified; **O
 
 - [x] **RESIZE-1: Remove callback deadlock during shrink.** Acceptance: worker callbacks can call `taskforge_pool_worker_count()` while another thread shrinks the pool; regression test completes within the test timeout. Status: Done on branch; CI pending.
 - [x] **RESIZE-2: Make stats safe during resize.** Acceptance: stats uses an atomic worker-count snapshot and never locks a deque that resize has destroyed; repeated shrink/grow and callback stats queries pass under TSan. Status: Done on branch; CI pending.
-- [ ] **IPC-1: Correct request/response framing.** Acceptance: exact-length body handling, version checks, embedded newline payloads, malformed input rejection, and bounded total timeout are covered by tests.
-- [ ] **QUEUE-1: Make producer cancellation bookkeeping failure-safe.** Acceptance: simulated allocation failure cannot strand the producer turn; blocked producers either progress or receive a documented error.
+- [ ] **IPC-1: Correct request/response framing.** In progress on PR #6. Acceptance: exact-length body handling, version checks, embedded newline results, malformed input rejection, and a shared total response deadline pass CI.
+- [x] **QUEUE-1: Remove allocation-dependent producer cancellation bookkeeping.** Acceptance: no producer-turn cancellation allocation exists; concurrent timed-out producers cannot poison later queue progress. Trade-off: strict FIFO producer fairness is not promised and is documented in the public queue header. Latest branch CI still required.
 - [ ] **LIFECYCLE-1: Test submit/shutdown and resize/shutdown races.** Acceptance: concurrent calls terminate deterministically, accepted tasks have documented outcomes, and no worker is joined twice.
 
 ## P2 — correctness, observability, and test depth
@@ -18,7 +18,7 @@ Status values: **Done on branch** means implemented but not yet CI-verified; **O
 - [ ] **MAP-1: Correct per-item timeout report statuses.** Acceptance: timed-out and canceled items have distinct, documented report status; running tasks are not claimed to have been interrupted.
 - [ ] **FUTURE-1: Expand cancellation race tests.** Acceptance: cancellation before dequeue, racing with transition to RUNNING, and immediate shutdown each have exactly-once cleanup and stable terminal state.
 - [ ] **PARSER-1: Add parser property/fuzz coverage.** Acceptance: malformed, huge, and boundary-valued specifications fail safely without integer overflow or unbounded unexpected allocation.
-- [ ] **IPC-2: Validate server handler table and socket path.** Acceptance: null names/callbacks, overlong paths, and unsafe existing path types are rejected without deleting unrelated filesystem entries.
+- [ ] **IPC-2: Validate server handler table and socket path.** In progress on PR #6. Acceptance: null names/callbacks, overlong paths, and unsafe existing path types are rejected without deleting unrelated filesystem entries.
 - [ ] **LOG-1: Review logger failure behavior.** Acceptance: file write/flush failures have a documented policy and cannot corrupt pool lifecycle.
 - [ ] **CLI-1: Complete review of every command, signal handling, and shutdown path.** Acceptance: documented commands match actual parser behavior and invalid/oversized input is handled predictably.
 
