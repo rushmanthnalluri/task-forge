@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -14,6 +15,16 @@ static int echo_handler(const char* arg, size_t length, char* result, size_t cap
     if (length + 1 > capacity) { *error_code = TASKFORGE_ERR_NOMEM; return -1; }
     memcpy(result, arg, length);
     result[length] = '\0';
+    *error_code = 0;
+    return 0;
+}
+
+static int multiline_handler(const char* arg, size_t length, char* result, size_t capacity,
+                             int* error_code, void* context) {
+    (void)arg; (void)length; (void)context;
+    static const char value[] = "first line\nsecond line";
+    if (sizeof(value) > capacity) { *error_code = TASKFORGE_ERR_NOMEM; return -1; }
+    memcpy(result, value, sizeof(value));
     *error_code = 0;
     return 0;
 }
@@ -83,10 +94,17 @@ static int raw_request(const char* path, const char* request) {
     size_t length = strlen(request);
     assert(send(fd, request, length, 0) == (ssize_t)length);
     shutdown(fd, SHUT_WR);
-    char response[256];
-    ssize_t received = recv(fd, response, sizeof(response) - 1, 0);
+    char response[128];
+    size_t used = 0;
+    while (used + 1 < sizeof(response)) {
+        ssize_t received = recv(fd, response + used, 1, 0);
+        if (received < 0 && errno == EINTR) continue;
+        if (received <= 0) break;
+        if (response[used++] == '\n') break;
+    }
+    response[used] = '\0';
     close(fd);
-    return received > 0 ? 0 : -1;
+    return used > 0 && strncmp(response, "1 0 ", 4) == 0 ? 0 : -1;
 }
 
 static void test_disconnect_recovery(const char* path) {
@@ -127,16 +145,27 @@ int main(void) {
     unlink(path);
     const taskforge_ipc_handler_t handlers[] = {
         {"echo", echo_handler, NULL},
+        {"multiline", multiline_handler, NULL},
         {"fail", fail_handler, NULL},
         {"slow", slow_handler, NULL}
     };
-    pid_t server = start_server(path, handlers, 3, 1);
+    pid_t server = start_server(path, handlers, 4, 1);
     char result[128]; int error = 0;
     assert(taskforge_ipc_client_call(path, "echo", "hello", 5, result, sizeof(result), &error, 1000) == 0);
     assert(strcmp(result, "hello") == 0 && error == 0);
     wait_server(path, server);
 
-    server = start_server(path, handlers, 3, 1);
+    server = start_server(path, handlers, 4, 1);
+    assert(taskforge_ipc_client_call(path, "echo", "  hello", 7, result, sizeof(result), &error, 1000) == 0);
+    assert(strcmp(result, "  hello") == 0 && error == 0);
+    wait_server(path, server);
+
+    server = start_server(path, handlers, 4, 1);
+    assert(taskforge_ipc_client_call(path, "multiline", "", 0, result, sizeof(result), &error, 1000) == 0);
+    assert(strcmp(result, "first line\nsecond line") == 0 && error == 0);
+    wait_server(path, server);
+
+    server = start_server(path, handlers, 4, 1);
     assert(taskforge_ipc_client_call(path, "unknown", "x", 1, result, sizeof(result), &error, 1000) != 0);
     wait_server(path, server);
 
