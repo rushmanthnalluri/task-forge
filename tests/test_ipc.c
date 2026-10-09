@@ -203,7 +203,7 @@ int main(void) {
     assert(raw_request(path, "999 echo x\n") == 0);
     wait_server(path, server);
 
-    server = start_server(path, handlers, 3, 1);
+    server = start_server(path, handlers, 5, 1);
     assert(taskforge_ipc_client_call(path, "slow", "x", 1, result, sizeof(result), &error, 10) != 0);
     wait_server(path, server);
 
