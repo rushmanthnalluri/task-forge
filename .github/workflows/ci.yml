@@ -8,8 +8,7 @@ on:
 
 concurrency:
   group: taskforge-ci-${{ github.ref }}
-  cancel-in-progress: false
-  queue: max
+  cancel-in-progress: true
 
 jobs:
   build-test:
