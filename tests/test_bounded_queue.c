@@ -35,6 +35,18 @@ static void* consumer_thread(void* arg) {
     return NULL;
 }
 
+typedef struct {
+    taskforge_queue_t* queue;
+    taskforge_task_t task;
+    taskforge_status_t status;
+} timed_producer_arg_t;
+
+static void* timed_producer_thread(void* arg) {
+    timed_producer_arg_t* producer = (timed_producer_arg_t*)arg;
+    producer->status = queue_push_timeout(producer->queue, &producer->task, 10);
+    return NULL;
+}
+
 int main(void) {
     printf("[TEST] Running test_bounded_queue...\n");
     assert(queue_create(SIZE_MAX, false) == NULL);
@@ -86,6 +98,29 @@ int main(void) {
     future_release(timeout_task.future);
     future_release(timeout_task.future);
 
+    /* Timed-out producers must not poison later queue progress. */
+    enum { TIMED_PRODUCERS = 24 };
+    timed_producer_arg_t producers[TIMED_PRODUCERS];
+    pthread_t producer_threads[TIMED_PRODUCERS];
+    for (int i = 0; i < TIMED_PRODUCERS; i++) {
+        producers[i].queue = q;
+        producers[i].task.task_id = 2000 + (uint64_t)i;
+        producers[i].task.fn = dummy_task;
+        producers[i].task.arg = (void*)(intptr_t)i;
+        producers[i].task.future = future_create(2000 + (uint64_t)i);
+        producers[i].task.prio = TASKFORGE_PRIO_NORMAL;
+        assert(producers[i].task.future != NULL);
+        producers[i].status = TASKFORGE_OK;
+        assert(pthread_create(&producer_threads[i], NULL, timed_producer_thread, &producers[i]) == 0);
+    }
+    for (int i = 0; i < TIMED_PRODUCERS; i++) {
+        assert(pthread_join(producer_threads[i], NULL) == 0);
+        assert(producers[i].status == TASKFORGE_ERR_TIMEOUT);
+        future_release(producers[i].task.future);
+        future_release(producers[i].task.future);
+    }
+    printf("  [PASS] Concurrent timed-out producers leave the bounded queue usable.\n");
+
     /* 4. Test blocking unblock: start consumer thread to pop */
     consumer_arg_t c_arg = { .q = q, .items_to_consume = TEST_CAPACITY, .consumed_count = 0 };
     pthread_t c_tid;
@@ -95,6 +130,22 @@ int main(void) {
     assert(c_arg.consumed_count == TEST_CAPACITY);
     assert(queue_is_empty(q));
     printf("  [PASS] Consumer drained all %d items, queue is now empty.\n", TEST_CAPACITY);
+
+    taskforge_task_t after_timeouts = {
+        .task_id = 3000,
+        .fn = dummy_task,
+        .arg = NULL,
+        .future = future_create(3000),
+        .prio = TASKFORGE_PRIO_NORMAL
+    };
+    assert(after_timeouts.future != NULL);
+    assert(queue_try_push(q, &after_timeouts) == TASKFORGE_OK);
+    taskforge_task_t popped_after_timeouts;
+    assert(queue_pop(q, &popped_after_timeouts));
+    assert(popped_after_timeouts.task_id == after_timeouts.task_id);
+    future_release(popped_after_timeouts.future);
+    future_release(popped_after_timeouts.future);
+    printf("  [PASS] Queue accepts and drains new work after producer timeouts.\n");
 
     queue_destroy(q);
     printf("[PASS] test_bounded_queue completed successfully!\n\n");
