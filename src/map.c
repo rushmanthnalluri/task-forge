@@ -4,6 +4,27 @@
 #include <time.h>
 #include "internal.h"
 
+static bool map_deadline_expired(const struct timespec* deadline) {
+    struct timespec now;
+    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) return true;
+    return now.tv_sec > deadline->tv_sec ||
+           (now.tv_sec == deadline->tv_sec && now.tv_nsec >= deadline->tv_nsec);
+}
+
+static void map_mark_unstarted(size_t start,
+                               size_t count,
+                               void** results,
+                               taskforge_map_item_result_t* report) {
+    for (size_t i = start; i < count; i++) {
+        if (results) results[i] = NULL;
+        if (report) {
+            report[i].status = TASKFORGE_ERR_CANCELLED;
+            report[i].task_error = 0;
+            report[i].result = NULL;
+        }
+    }
+}
+
 static taskforge_status_t map_impl(taskforge_pool_t* pool,
                                    taskforge_task_fn map_fn,
                                    void** items,
@@ -50,14 +71,51 @@ static taskforge_status_t map_impl(taskforge_pool_t* pool,
         if (results) {
             for (size_t i = 0; i < count; i++) results[i] = NULL;
         }
+
+        struct timespec inline_deadline = {0};
+        if (timed) {
+            if (clock_gettime(CLOCK_MONOTONIC, &inline_deadline) != 0) {
+                free(input_copy);
+                return TASKFORGE_ERR_FAILED;
+            }
+            inline_deadline.tv_sec += timeout_ms / 1000U;
+            inline_deadline.tv_nsec += (long)(timeout_ms % 1000U) * 1000000L;
+            if (inline_deadline.tv_nsec >= 1000000000L) {
+                inline_deadline.tv_sec++;
+                inline_deadline.tv_nsec -= 1000000000L;
+            }
+        }
+
         taskforge_status_t status = TASKFORGE_OK;
         for (size_t i = 0; i < count; i++) {
+            if (timed && map_deadline_expired(&inline_deadline)) {
+                status = TASKFORGE_ERR_TIMEOUT;
+                if (report) {
+                    report[i].status = TASKFORGE_ERR_TIMEOUT;
+                    report[i].task_error = 0;
+                    report[i].result = NULL;
+                }
+                map_mark_unstarted(i + 1, count, results, report);
+                break;
+            }
+
+            /*
+             * Inline callbacks cannot be forcibly interrupted. If one runs past
+             * the deadline, retain its completed result but do not start later
+             * callbacks; report the overall operation as timed out.
+             */
             void* result = map_fn(map_items[i]);
             if (results) results[i] = result;
             if (report) {
                 report[i].status = TASKFORGE_OK;
                 report[i].task_error = 0;
                 report[i].result = result;
+            }
+
+            if (timed && map_deadline_expired(&inline_deadline)) {
+                status = TASKFORGE_ERR_TIMEOUT;
+                map_mark_unstarted(i + 1, count, results, report);
+                break;
             }
         }
         free(input_copy);

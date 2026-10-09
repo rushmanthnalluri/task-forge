@@ -1,8 +1,8 @@
 # Engineering backlog
 
-**Updated:** 2026-10-09 22:49 IST  
+**Updated:** 2026-10-09 22:52 IST  
 **Deadline:** 2026-10-10 12:50 IST  
-**Last fully green combined code/test head:** `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a` — [CI run 37965261107](https://github.com/rushmanthnalluri/task-forge/actions/runs/37965261107) passed all five gates. Subsequent changes are engineering-record updates and require a fresh run.
+**Last fully green combined main head:** `a8be96862ad004247e2a0c36e44250e03ce7960e` (post-merge CI pending); the inline-timeout branch has not yet been CI-verified. — [CI run 37965261107](https://github.com/rushmanthnalluri/task-forge/actions/runs/37965261107) passed all five gates. Subsequent changes are engineering-record updates and require a fresh run.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
 
@@ -19,7 +19,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 
 - [x] **MAP-1: Correct timeout report statuses.** Timed-out, canceled, completed, and still-running items are distinguished; running tasks are not claimed to have been interrupted.
 - [x] **MAP-2: Preserve per-item reports when a later submission fails.** Drain prior futures and populate their actual status, error, and result. Regression uses a one-worker/capacity-one pool with concurrent immediate shutdown. Latest code/test head passed all five gates.
-- [ ] **MAP-3: Enforce timeout semantics for inline/nested map calls.** The worker-inline path currently executes callbacks without checking the timeout. Acceptance: no new callback starts after the deadline; unstarted items are reported; a running callback is documented as non-interruptible.
+- [x] **MAP-3: Enforce timeout semantics for inline/nested map calls.** Worker-inline execution checks the monotonic deadline between callbacks, preserves completed results, and reports unstarted items as canceled. Regression covers a slow inline callback and verifies the overall timeout/report. CI pending on `fix/inline-map-timeout`.
 - [ ] **QUEUE-2: Make `queue_pop` semantics match its contract.** It currently returns false after an internal 50 ms poll even though the header describes blocking behavior. Prefer a true blocking public API plus a timed internal polling variant for work stealing; add a regression test.
 - [ ] **FUTURE-1: Expand cancellation race tests.** Cover cancellation before dequeue, the transition to RUNNING, and immediate shutdown with exactly-once cleanup.
 - [ ] **PARSER-1: Add parser property/fuzz coverage.** Malformed, huge, and boundary-valued specs must fail safely without integer overflow or unbounded unexpected allocation.

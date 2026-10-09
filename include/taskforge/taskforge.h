@@ -116,7 +116,10 @@ int taskforge_future_get_error(taskforge_future_t* future);
 bool taskforge_future_cancel(taskforge_future_t* future);
 void taskforge_future_release(taskforge_future_t* future);
 
-/* Map convenience API: process collection in parallel and wait for all */
+/* Map convenience API: process collection in parallel and wait for all.
+ * The timeout variants use one total deadline. A map invoked from a worker in
+ * the same pool runs inline to avoid deadlock; an already-running callback
+ * cannot be interrupted, but no later callback starts after the deadline. */
 taskforge_status_t taskforge_map(taskforge_pool_t* pool,
                                  taskforge_task_fn map_fn,
                                  void** items,
