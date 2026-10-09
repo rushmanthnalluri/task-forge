@@ -93,7 +93,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Callers cannot reliably distinguish timed-out, canceled, and failed items in the report.
 - **Remediation:** When the shared deadline expires, cancel the current item if it is still pending; for later items, record `CANCELLED` when cancellation succeeds or perform a zero-time terminal-state check so completed, failed, and still-running items are reported accurately. Running tasks are not forcibly interrupted.
 - **Regression test:** A one-worker pool runs a slow first item and leaves the second queued; the report must mark the first `TIMEOUT` and the second `CANCELLED`.
-- **Status:** Implemented on `mission/engineering-hardening-2026-10-09`; combined CI pending.
+- **Status:** Implemented on combined PR #5; CI run [37965261107](https://github.com/rushmanthnalluri/task-forge/actions/runs/37965261107) passed all five gates on code/test head `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a`; later documentation-only updates require revalidation.
 
 ### TF-MAP-002 — Submission failure leaves earlier map report entries at their default failure state
 
