@@ -8,6 +8,7 @@
 #include "taskforge/taskforge.h"
 
 #define BENCH_TASKS 100000
+#define CSV_OUTPUT_PATH "benchmarks/scaling_results.csv"
 #define BENCH_REPEATS 3
 
 static void* compute_workload(void* arg) {
@@ -94,9 +95,15 @@ int main(int argc, char** argv) {
     size_t num_tests = sizeof(worker_counts) / sizeof(worker_counts[0]);
 
     double baseline_tp = 0.0;
-    FILE* csv = fopen("benchmarks/scaling_results.csv", "w");
-    if (csv) {
-        fprintf(csv, "workers,throughput,speedup,efficiency\n");
+    FILE* csv = fopen(CSV_OUTPUT_PATH, "w");
+    if (!csv) {
+        perror("Failed to open benchmark CSV: " CSV_OUTPUT_PATH);
+        return 1;
+    }
+    if (fprintf(csv, "workers,throughput,speedup,efficiency\n") < 0) {
+        fprintf(stderr, "Failed to write benchmark CSV header.\n");
+        fclose(csv);
+        return 1;
     }
 
     for (size_t i = 0; i < num_tests; i++) {
@@ -115,13 +122,18 @@ int main(int argc, char** argv) {
         printf("%-10zu | %-16.1f | %-16.2fx | %-9.1f%%\n",
                w, tp, speedup, efficiency);
 
-        if (csv) {
-            fprintf(csv, "%zu,%.2f,%.2f,%.2f\n", w, tp, speedup, efficiency);
+        if (fprintf(csv, "%zu,%.2f,%.2f,%.2f\n", w, tp, speedup, efficiency) < 0) {
+            fprintf(stderr, "Failed to write benchmark CSV row.\n");
+            fclose(csv);
+            return 1;
         }
     }
 
-    if (csv) fclose(csv);
+    if (fclose(csv) != 0) {
+        perror("Failed to close benchmark CSV: " CSV_OUTPUT_PATH);
+        return 1;
+    }
     printf("==========================================================================\n");
-    printf("Saved CSV data to 'benchmarks/scaling_results.csv'.\n");
+    printf("Saved CSV data to '" CSV_OUTPUT_PATH "'.\n");
     return 0;
 }
