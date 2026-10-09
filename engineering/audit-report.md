@@ -1,7 +1,7 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 22:39 IST  
+**Last confirmed execution time:** 2026-10-09 22:42 IST  
 **Baseline branch:** `main`  
 **Baseline commit:** `3c4b115da5e5bb14516d707858581aa7e62a240c`  
 **Coverage status:** In progress; see subsystem ledger below.
@@ -34,15 +34,48 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Status:** Implemented on mission branch; CI pending.
 - **Commit:** `ce43a233a47d3ae9acf71b531b5257129764cb09`.
 
-### TF-IPC-001 — IPC framing and request validation are incomplete
-- **Component:** `src/ipc.c`, `include/taskforge/ipc.h`, `tests/test_ipc.c`
-- **Severity/confidence:** P1 / high
-- **Evidence:** Server parsing discards the parsed protocol version instead of validating it. Requests and responses use newline-delimited reads while also exposing byte lengths, so embedded newlines are truncated/misinterpreted. The client formats a request name without validating its length or whitespace, and response bodies are read as lines rather than by the declared byte length.
-- **Impact:** Incorrect protocol behavior for valid byte payloads, malformed-request ambiguity, and interoperability hazards. The exposed local socket can also be affected by path lifecycle assumptions.
-- **Proposed remediation:** Define and test explicit length framing, validate version/name/handler table/path before use, implement exact-length reads/writes with a total deadline, and preserve the host process's signal disposition.
-- **Required tests:** Unknown protocol version; empty and maximum-length names/payloads; embedded newline bytes; partial reads/writes; malformed/oversized headers; timeout with a slow trickle; invalid handler tables.
-- **Status:** Open; not yet changed.
+### TF-IPC-001 — IPC response framing, protocol checks, and read deadlines
 
+- **Severity/confidence:** P2 / high.
+- **Evidence:** The baseline client read response bodies with a newline reader even though the response header carried a byte length; the server parsed but did not enforce the protocol version.
+- **Impact:** Multiline handler results were truncated/misframed and incompatible protocol versions could reach dispatch.
+- **Remediation:** Read the advertised body length exactly, validate the trailing delimiter and response header, enforce protocol version, validate handler names/entries, and use a shared monotonic deadline across the response header/body.
+- **Regression tests:** Multiline result round-trip; unsupported version against a registered handler; slow-trickle body must time out against one total deadline.
+- **Status:** Implemented on the mission branch; combined CI pending.
+
+### TF-IPC-002 — Unsafe socket-path deletion
+
+- **Severity/confidence:** P1 / high.
+- **Evidence:** Baseline startup unconditionally unlinked the requested path before bind and also unlinked after bind/listen failure. The stop function unlinked any path.
+- **Impact:** A caller-supplied regular file could be deleted, or a path not created by this server could be removed.
+- **Remediation:** Reject existing paths, do not unlink on bind failure, record the bound socket's device/inode and only clean up that same socket, and reject non-socket paths in the cleanup API.
+- **Regression test:** A pre-existing regular file remains byte-for-byte unchanged after attempted server start/stop.
+- **Status:** Implemented on the mission branch; combined CI pending.
+
+### TF-IPC-003 — Ambiguous request text was not rejected
+
+- **Severity/confidence:** P2 / high.
+- **Evidence:** The v1 request format uses a newline-terminated text line; NUL, CR, or LF inside the argument cannot be represented unambiguously.
+- **Impact:** Such input could be truncated or interpreted as protocol framing.
+- **Remediation:** Explicitly reject NUL/CR/LF request arguments before connecting; keep the supported v1 argument contract text-only. Response bodies are length-framed and can contain newlines.
+- **Regression test:** Client calls with NUL/CR/LF arguments fail before connecting.
+- **Status:** Implemented on the mission branch; combined CI pending.
+
+### TF-IPC-004 — Handler failure could be reported as success
+
+- **Severity/confidence:** P2 / high.
+- **Evidence:** A handler returning failure while leaving its error output zero could produce a failure response with error code zero, which the client returned as success.
+- **Impact:** Callers could mistake failed work for successful work.
+- **Remediation:** Normalize failure-with-zero-error to `TASKFORGE_ERR_FAILED` on both server and client paths.
+- **Regression test:** A handler that fails without setting an error code must return `TASKFORGE_ERR_FAILED`.
+- **Status:** Implemented on the mission branch; combined CI pending.
+
+### TF-IPC-005 — Server stop API does not stop the listener
+
+- **Severity/confidence:** P2 (API contract clarity) / high.
+- **Evidence:** `taskforge_ipc_server_stop` only unlinks the socket pathname; it does not wake the server's blocking `accept()` loop.
+- **Impact:** Callers could believe a listening server process had terminated when it was merely unlinked from its pathname.
+- **Remediation/status:** Public header and README now document that it only unlinks a socket path and does not terminate the server. A future true-stop API needs an explicit server handle or authenticated control channel.
 ### TF-QUEUE-001 — Producer ticket cancellation can fail open into a permanent stall
 - **Component:** `src/queue.c`, `cancel_ticket`, `abandon_ticket`
 - **Severity/confidence:** P2 / medium-high
@@ -72,7 +105,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
 | Map API | Source + tests; deterministic one-worker timeout report regression added | Verify latest mission-branch CI |
 | Parser / workload execution | Source + parser tests | More fuzz/property tests and resource-limit behavior |
-| IPC | Source + header + tests | IPC hardening is being verified separately in PR #6 |
+| IPC | Source + header + tests; multiline, invalid argument, path safety, version, timeout, and error-fallback regressions added | Verify combined mission-branch CI; server_stop remains path-unlink only by documented contract |
 | CLI | Entry point and command handling reviewed partially | Finish remaining command/signal/error-path review |
 | Logging | Source reviewed | I/O error propagation and performance implications |
 | Work stealing | Source reviewed | Model-based resize/shutdown interleavings |
