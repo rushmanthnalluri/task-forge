@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdatomic.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -40,6 +41,22 @@ typedef struct {
     taskforge_task_t task;
     taskforge_status_t status;
 } timed_producer_arg_t;
+
+typedef struct {
+    taskforge_queue_t* queue;
+    atomic_bool entered;
+    atomic_bool done;
+    bool result;
+    taskforge_task_t popped;
+} blocking_pop_arg_t;
+
+static void* blocking_pop_thread(void* arg) {
+    blocking_pop_arg_t* waiter = (blocking_pop_arg_t*)arg;
+    atomic_store(&waiter->entered, true);
+    waiter->result = queue_pop(waiter->queue, &waiter->popped);
+    atomic_store(&waiter->done, true);
+    return NULL;
+}
 
 static void* timed_producer_thread(void* arg) {
     timed_producer_arg_t* producer = (timed_producer_arg_t*)arg;
@@ -121,6 +138,11 @@ int main(void) {
     }
     printf("  [PASS] Concurrent timed-out producers leave the bounded queue usable.\n");
 
+    /* Timed pop may poll, but a timeout must not stop the queue. */
+    taskforge_task_t timed_pop;
+    assert(!queue_pop_timeout(q, &timed_pop, 20));
+    printf("  [PASS] Timed pop returns on an idle interval without stopping the queue.\n");
+
     /* 4. Test blocking unblock: start consumer thread to pop */
     consumer_arg_t c_arg = { .q = q, .items_to_consume = TEST_CAPACITY, .consumed_count = 0 };
     pthread_t c_tid;
@@ -146,6 +168,43 @@ int main(void) {
     future_release(popped_after_timeouts.future);
     future_release(popped_after_timeouts.future);
     printf("  [PASS] Queue accepts and drains new work after producer timeouts.\n");
+
+    /* queue_pop must not return false just because its former 50 ms poll elapsed. */
+    blocking_pop_arg_t waiter = {.queue = q};
+    atomic_init(&waiter.entered, false);
+    atomic_init(&waiter.done, false);
+    pthread_t waiter_thread;
+    assert(pthread_create(&waiter_thread, NULL, blocking_pop_thread, &waiter) == 0);
+    while (!atomic_load(&waiter.entered)) usleep(100);
+    usleep(100000);
+    assert(!atomic_load(&waiter.done));
+    taskforge_task_t wake_task = {
+        .task_id = 4000,
+        .fn = dummy_task,
+        .arg = NULL,
+        .future = future_create(4000),
+        .prio = TASKFORGE_PRIO_NORMAL
+    };
+    assert(wake_task.future != NULL);
+    assert(queue_try_push(q, &wake_task) == TASKFORGE_OK);
+    assert(pthread_join(waiter_thread, NULL) == 0);
+    assert(waiter.result);
+    assert(waiter.popped.task_id == wake_task.task_id);
+    future_release(waiter.popped.future);
+    future_release(waiter.popped.future);
+    printf("  [PASS] Blocking pop waits for work beyond the polling interval.\n");
+
+    blocking_pop_arg_t shutdown_waiter = {.queue = q};
+    atomic_init(&shutdown_waiter.entered, false);
+    atomic_init(&shutdown_waiter.done, false);
+    assert(pthread_create(&waiter_thread, NULL, blocking_pop_thread, &shutdown_waiter) == 0);
+    while (!atomic_load(&shutdown_waiter.entered)) usleep(100);
+    usleep(100000);
+    assert(!atomic_load(&shutdown_waiter.done));
+    queue_signal_shutdown(q, true);
+    assert(pthread_join(waiter_thread, NULL) == 0);
+    assert(!shutdown_waiter.result);
+    printf("  [PASS] Blocking pop wakes when an empty queue is shut down.\n");
 
     queue_destroy(q);
     printf("[PASS] test_bounded_queue completed successfully!\n\n");
