@@ -2,14 +2,15 @@
 
 - **Mission:** TaskForge autonomous engineering hardening
 - **Hard deadline:** 2026-10-10 12:50 PM IST (UTC+05:30)
-- **Last confirmed execution time:** 2026-10-09 22:42 IST
+- **Last confirmed execution time:** 2026-10-09 22:43 IST
 - **Time remaining at last check:** approximately 14 hours 17 minutes
 - **Repository:** https://github.com/rushmanthnalluri/task-forge
 - **Baseline main SHA:** `3c4b115da5e5bb14516d707858581aa7e62a240c`
 - **Working branch:** `mission/engineering-hardening-2026-10-09`
-- **Latest IPC regression commit:** `94078e22d0096d35020fcbc094334f0693b3b1d5`; IPC implementation commit `e953b1d4cfc08686648db60c01e0db0bdccc081d`; README/header updates `cd256e0cd285304227b9718af0cd874469695cc4` and `ee7f434d4be052f7853d172075d13d3ad78ea9a2`.
-- **Latest map fix:** regression test `81e49aaf9528fc8a5b258117beab09ac09e61b41`; implementation `29ecd5a7a11e44d44769df4e66692806ac3ae772`. Queue bookkeeping removal `5f99571c39df7309693d3e445e1292dff46edef6`; resize fix `ce43a233a47d3ae9acf71b531b5257129764cb09`.
-- **PR:** [#5](https://github.com/rushmanthnalluri/task-forge/pull/5) is open and contains the resize, queue, map, IPC, README, and engineering-record changes. Latest combined CI is pending.
+- **Latest branch head:** `3298de8549f30bd2aa4ad77c6a65800fa6c59dca` (map timeout regression, preserving baseline line endings).
+- **IPC regression commit:** `94078e22d0096d35020fcbc094334f0693b3b1d5`; IPC implementation commit `e953b1d4cfc08686648db60c01e0db0bdccc081d`; README/header updates `cd256e0cd285304227b9718af0cd874469695cc4` and `ee7f434d4be052f7853d172075d13d3ad78ea9a2`.
+- **Latest map fix:** regression test `3298de8549f30bd2aa4ad77c6a65800fa6c59dca`; implementation `5463a260a3331d05837c7448eb0a5f60e883a9ce`. Queue source/header commits `d9f25c0912a074aa8b289309e933a9d2e4a8cece` and `91f7f77e2f63ae281175e0659b30a06d321a582a`; queue regression `1a013fe51bcc68281773c2360dce80fd4aa842b1`. Resize fix `ce43a233a47d3ae9acf71b531b5257129764cb09`.
+- **PR:** [#5](https://github.com/rushmanthnalluri/task-forge/pull/5) is open and contains the resize, queue, map, IPC, README, and engineering-record changes. Latest-head CI run [37964616700](https://github.com/rushmanthnalluri/task-forge/actions/runs/37964616700) is queued; do not infer success from earlier intermediate revisions.
 - **Local execution:** Unavailable in this environment. Changes are made via GitHub connector; remote CI is required for executable verification.
 - **Main baseline CI:** Run [37963052958](https://github.com/rushmanthnalluri/task-forge/actions/runs/37963052958), success on baseline main. Do not treat as validation of branch changes.
 
