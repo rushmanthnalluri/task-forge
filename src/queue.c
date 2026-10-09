@@ -10,45 +10,6 @@
 static inline void ring_push_internal(ring_buffer_t* ring, const taskforge_task_t* task);
 static inline void ring_pop_internal(ring_buffer_t* ring, taskforge_task_t* out_task);
 
-static bool cancel_ticket(taskforge_queue_t* q, uint64_t ticket) {
-    if (ticket < q->producer_turn) return true;
-    if (ticket == q->producer_turn) {
-        q->producer_turn++;
-        return true;
-    }
-    if (q->canceled_count == q->canceled_capacity) {
-        size_t capacity = q->canceled_capacity ? q->canceled_capacity * 2 : 16;
-        if (capacity < q->canceled_capacity || capacity > SIZE_MAX / sizeof(*q->canceled_tickets)) return false;
-        uint64_t* tickets = realloc(q->canceled_tickets, capacity * sizeof(*tickets));
-        if (!tickets) return false;
-        q->canceled_tickets = tickets;
-        q->canceled_capacity = capacity;
-    }
-    q->canceled_tickets[q->canceled_count++] = ticket;
-    return true;
-}
-
-static void advance_canceled_tickets(taskforge_queue_t* q) {
-    bool advanced;
-    do {
-        advanced = false;
-        for (size_t i = 0; i < q->canceled_count; i++) {
-            if (q->canceled_tickets[i] == q->producer_turn) {
-                q->canceled_tickets[i] = q->canceled_tickets[--q->canceled_count];
-                q->producer_turn++;
-                advanced = true;
-                break;
-            }
-        }
-    } while (advanced);
-}
-
-static void abandon_ticket(taskforge_queue_t* q, uint64_t ticket) {
-    (void)cancel_ticket(q, ticket);
-    advance_canceled_tickets(q);
-    pthread_cond_broadcast(&q->not_full);
-}
-
 taskforge_queue_t* queue_create(size_t capacity, bool enable_priority) {
     if (capacity == 0) capacity = 1024;
     if (capacity > SIZE_MAX / sizeof(taskforge_task_t)) return NULL;
@@ -164,15 +125,10 @@ taskforge_status_t queue_push(taskforge_queue_t* q, const taskforge_task_t* task
     if (!q || !task) return TASKFORGE_ERR_INVALID;
 
     pthread_mutex_lock(&q->mutex);
-    uint64_t ticket = q->producer_next_ticket++;
-
-    while ((q->total_count >= q->total_capacity || ticket != q->producer_turn) &&
-           !q->shutdown && !q->draining) {
+    while (q->total_count >= q->total_capacity && !q->shutdown && !q->draining) {
         pthread_cond_wait(&q->not_full, &q->mutex);
     }
-
     if (q->shutdown || q->draining) {
-        abandon_ticket(q, ticket);
         pthread_mutex_unlock(&q->mutex);
         return TASKFORGE_ERR_SHUTDOWN;
     }
@@ -180,11 +136,7 @@ taskforge_status_t queue_push(taskforge_queue_t* q, const taskforge_task_t* task
     size_t ring_idx = get_ring_index(q, task->prio);
     ring_push_internal(&q->ring[ring_idx], task);
     q->total_count++;
-    q->producer_turn++;
-    advance_canceled_tickets(q);
-
     pthread_cond_signal(&q->not_empty);
-    pthread_cond_broadcast(&q->not_full);
     pthread_mutex_unlock(&q->mutex);
     return TASKFORGE_OK;
 }
@@ -193,14 +145,11 @@ taskforge_status_t queue_try_push(taskforge_queue_t* q, const taskforge_task_t* 
     if (!q || !task) return TASKFORGE_ERR_INVALID;
 
     pthread_mutex_lock(&q->mutex);
-    uint64_t ticket = q->producer_next_ticket++;
     if (q->shutdown || q->draining) {
-        abandon_ticket(q, ticket);
         pthread_mutex_unlock(&q->mutex);
         return TASKFORGE_ERR_SHUTDOWN;
     }
-    if (q->total_count >= q->total_capacity || ticket != q->producer_turn) {
-        abandon_ticket(q, ticket);
+    if (q->total_count >= q->total_capacity) {
         pthread_mutex_unlock(&q->mutex);
         return TASKFORGE_ERR_FULL;
     }
@@ -208,9 +157,6 @@ taskforge_status_t queue_try_push(taskforge_queue_t* q, const taskforge_task_t* 
     size_t ring_idx = get_ring_index(q, task->prio);
     ring_push_internal(&q->ring[ring_idx], task);
     q->total_count++;
-    q->producer_turn++;
-    advance_canceled_tickets(q);
-
     pthread_cond_signal(&q->not_empty);
     pthread_mutex_unlock(&q->mutex);
     return TASKFORGE_OK;
@@ -229,37 +175,26 @@ taskforge_status_t queue_push_timeout(taskforge_queue_t* q, const taskforge_task
     }
 
     pthread_mutex_lock(&q->mutex);
-    uint64_t ticket = q->producer_next_ticket++;
     int rc = 0;
-    while ((q->total_count >= q->total_capacity || ticket != q->producer_turn) &&
-           !q->shutdown && !q->draining && rc == 0) {
+    while (q->total_count >= q->total_capacity && !q->shutdown && !q->draining && rc == 0) {
         rc = pthread_cond_timedwait(&q->not_full, &q->mutex, &ts);
     }
-
     if (rc != 0 && rc != ETIMEDOUT) {
-        abandon_ticket(q, ticket);
         pthread_mutex_unlock(&q->mutex);
         return TASKFORGE_ERR_FAILED;
     }
     if (q->shutdown || q->draining) {
-        abandon_ticket(q, ticket);
         pthread_mutex_unlock(&q->mutex);
         return TASKFORGE_ERR_SHUTDOWN;
     }
-    if (q->total_count >= q->total_capacity || ticket != q->producer_turn) {
-        abandon_ticket(q, ticket);
+    if (q->total_count >= q->total_capacity) {
         pthread_mutex_unlock(&q->mutex);
-        if (rc == ETIMEDOUT) return TASKFORGE_ERR_TIMEOUT;
-        if (rc != 0) return TASKFORGE_ERR_FAILED;
-        return TASKFORGE_ERR_FULL;
+        return rc == ETIMEDOUT ? TASKFORGE_ERR_TIMEOUT : TASKFORGE_ERR_FULL;
     }
 
     size_t ring_idx = get_ring_index(q, task->prio);
     ring_push_internal(&q->ring[ring_idx], task);
     q->total_count++;
-    q->producer_turn++;
-    advance_canceled_tickets(q);
-
     pthread_cond_signal(&q->not_empty);
     pthread_mutex_unlock(&q->mutex);
     return TASKFORGE_OK;
