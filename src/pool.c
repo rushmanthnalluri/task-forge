@@ -43,6 +43,15 @@ struct taskforge_pool {
     size_t created_workers;
 };
 
+/*
+ * Do not identify workers by pthread_t.  A pthread_t remains a valid value
+ * after pthread_join(), and implementations are allowed to reuse it for a
+ * later, unrelated thread.  Such a thread could then be mistaken for a
+ * worker while shutdown is being finalized.  Worker identity is scoped to
+ * the actual thread instead.
+ */
+static _Thread_local taskforge_pool_t* tls_worker_pool;
+
 void taskforge_default_config(taskforge_pool_config_t* config) {
     if (!config) return;
     long nprocs = sysconf(_SC_NPROCESSORS_ONLN);
@@ -91,6 +100,7 @@ static void execute_task_item(worker_thread_t* self, taskforge_task_t* task) {
 static void* worker_loop(void* arg) {
     worker_thread_t* self = (worker_thread_t*)arg;
     taskforge_pool_t* pool = self->pool;
+    tls_worker_pool = pool;
 
     while (1) {
         if (atomic_load(&pool->immediate_shutdown)) break;
@@ -190,6 +200,7 @@ static void* worker_loop(void* arg) {
         }
     }
 
+    tls_worker_pool = NULL;
     return NULL;
 }
 
@@ -450,12 +461,7 @@ taskforge_future_t* taskforge_submit_timeout(taskforge_pool_t* pool,
 }
 
 bool taskforge_pool_is_worker_thread(taskforge_pool_t* pool) {
-    if (!pool || !pool->workers) return false;
-    pthread_t self = pthread_self();
-    for (size_t i = 0; i < pool->created_workers; i++) {
-        if (pthread_equal(self, pool->workers[i].thread)) return true;
-    }
-    return false;
+    return pool != NULL && tls_worker_pool == pool;
 }
 
 static bool caller_is_worker(taskforge_pool_t* pool) {

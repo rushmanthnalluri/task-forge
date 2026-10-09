@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include "taskforge/parser.h"
 
 int main(void) {
@@ -47,6 +48,43 @@ int main(void) {
     assert(workload_spec_parse_string("TASK 1 URGENT 1 2 3\n") == NULL);
     assert(workload_spec_parse_string("UNKNOWN 1 2 3\n") == NULL);
     assert(workload_spec_parse_string("TASK 1 HIGH 1 2 3\nTASK 1 LOW 1 2 3\n") == NULL);
+
+    /* scanf's unsigned conversions accept signs and silently leave an
+     * overflowing value implementation-dependent; the grammar must reject
+     * both cases for every numeric field. */
+    assert(workload_spec_parse_string("TASK -1 HIGH 1 2 3\n") == NULL);
+    assert(workload_spec_parse_string("TASK 1 HIGH -1 2 3\n") == NULL);
+    assert(workload_spec_parse_string("TASK 1 HIGH 1 18446744073709551616 3\n") == NULL);
+    assert(workload_spec_parse_string("REPEAT 18446744073709551616 TASK LOW 1 2 3\n") == NULL);
+
+    /* Blank physical lines count toward diagnostics and do not disappear as
+     * strtok would make them disappear.  More importantly, a large repeat
+     * with no explicit ids should remain linear rather than rescanning all
+     * generated ids for every item. */
+    char repeat[128];
+    strcpy(repeat, "\nREPEAT 10000 TASK LOW 0 0 0\n");
+    workload_spec_t* repeated = workload_spec_parse_string(repeat);
+    assert(repeated != NULL && repeated->count == 10000);
+    assert(repeated->tasks[9999].task_id == 10000);
+    workload_spec_destroy(repeated);
+
+    const char* sparse_ids =
+        "TASK 1000000000 HIGH 0 0 1\n"
+        "REPEAT 5000 TASK LOW 0 0 2\n";
+    workload_spec_t* sparse = workload_spec_parse_string(sparse_ids);
+    assert(sparse != NULL && sparse->count == 5001);
+    assert(sparse->tasks[1].task_id == 1000000001);
+    assert(sparse->tasks[5000].task_id == 1000005000);
+    workload_spec_destroy(sparse);
+
+    const char* binary_path = "/tmp/taskforge-parser-nul.spec";
+    FILE* binary = fopen(binary_path, "wb");
+    assert(binary != NULL);
+    const unsigned char binary_spec[] = "TASK 1 HIGH 0 0 1\0TASK 2 LOW 0 0 2\n";
+    assert(fwrite(binary_spec, 1, sizeof(binary_spec) - 1, binary) == sizeof(binary_spec) - 1);
+    assert(fclose(binary) == 0);
+    assert(workload_spec_parse_file(binary_path) == NULL);
+    remove(binary_path);
 
     printf("[PASS] test_parser completed successfully!\n\n");
     return 0;

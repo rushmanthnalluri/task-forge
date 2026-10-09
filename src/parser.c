@@ -26,11 +26,123 @@ static bool parse_priority(const char* text, taskforge_task_priority_t* out) {
     return false;
 }
 
-static bool id_exists(const workload_spec_t* spec, uint64_t id) {
-    for (size_t i = 0; i < spec->count; i++) {
-        if (spec->tasks[i].task_id == id) return true;
+static bool parse_u64(const char* text, uint64_t* out) {
+    if (!text || !*text || *text == '-') return false;
+    for (const unsigned char* p = (const unsigned char*)text; *p; p++)
+        if (!isdigit(*p)) return false;
+    errno = 0;
+    char* end = NULL;
+    unsigned long long value = strtoull(text, &end, 10);
+    if (errno == ERANGE || !end || *end != '\0' || value > UINT64_MAX) return false;
+    *out = (uint64_t)value;
+    return true;
+}
+
+static bool parse_u32(const char* text, uint32_t* out) {
+    uint64_t value;
+    if (!parse_u64(text, &value) || value > UINT32_MAX) return false;
+    *out = (uint32_t)value;
+    return true;
+}
+
+static bool parse_size(const char* text, size_t* out) {
+    uint64_t value;
+    if (!parse_u64(text, &value) || value > SIZE_MAX) return false;
+    *out = (size_t)value;
+    return true;
+}
+
+static bool parse_i64(const char* text, int64_t* out) {
+    if (!text || !*text) return false;
+    const char* p = text;
+    if (*p == '-') p++;
+    if (!*p) return false;
+    for (; *p; p++) if (!isdigit((unsigned char)*p)) return false;
+    errno = 0;
+    char* end = NULL;
+    long long value = strtoll(text, &end, 10);
+    if (errno == ERANGE || !end || *end != '\0') return false;
+    *out = (int64_t)value;
+    return true;
+}
+
+static size_t fields(char* line, char** out, size_t limit) {
+    size_t count = 0;
+    while (*line) {
+        while (isspace((unsigned char)*line)) line++;
+        if (!*line) break;
+        if (count == limit) return limit + 1;
+        out[count++] = line;
+        while (*line && !isspace((unsigned char)*line)) line++;
+        if (*line) *line++ = '\0';
+    }
+    return count;
+}
+
+typedef struct {
+    uint64_t* slots;
+    size_t capacity;
+    size_t count;
+} id_set_t;
+
+static size_t id_hash(uint64_t id) {
+    id ^= id >> 30;
+    id *= UINT64_C(0xbf58476d1ce4e5b9);
+    id ^= id >> 27;
+    id *= UINT64_C(0x94d049bb133111eb);
+    id ^= id >> 31;
+    return (size_t)id;
+}
+
+static bool id_set_contains(const id_set_t* set, uint64_t id) {
+    if (!set || !set->slots || id == 0) return false;
+    size_t mask = set->capacity - 1;
+    size_t index = id_hash(id) & mask;
+    while (set->slots[index] != 0) {
+        if (set->slots[index] == id) return true;
+        index = (index + 1) & mask;
     }
     return false;
+}
+
+static bool id_set_rehash(id_set_t* set, size_t capacity) {
+    if (capacity < 16 || (capacity & (capacity - 1)) != 0 ||
+        capacity > SIZE_MAX / sizeof(*set->slots)) return false;
+    uint64_t* slots = calloc(capacity, sizeof(*slots));
+    if (!slots) return false;
+    if (set->slots) {
+        for (size_t i = 0; i < set->capacity; i++) {
+            uint64_t id = set->slots[i];
+            if (id != 0) {
+                size_t index = id_hash(id) & (capacity - 1);
+                while (slots[index] != 0) index = (index + 1) & (capacity - 1);
+                slots[index] = id;
+            }
+        }
+        free(set->slots);
+    }
+    set->slots = slots;
+    set->capacity = capacity;
+    return true;
+}
+
+static bool id_set_insert(id_set_t* set, uint64_t id) {
+    if (!set || id == 0 || id_set_contains(set, id)) return false;
+    if (!set->capacity && !id_set_rehash(set, 16)) return false;
+    if (set->count >= set->capacity - set->capacity / 3) {
+        if (set->capacity > SIZE_MAX / 2 || !id_set_rehash(set, set->capacity * 2)) return false;
+    }
+    size_t index = id_hash(id) & (set->capacity - 1);
+    while (set->slots[index] != 0) index = (index + 1) & (set->capacity - 1);
+    set->slots[index] = id;
+    set->count++;
+    return true;
+}
+
+static void id_set_destroy(id_set_t* set) {
+    if (!set) return;
+    free(set->slots);
+    memset(set, 0, sizeof(*set));
 }
 
 static bool ensure_capacity(workload_spec_t* spec, size_t additional) {
@@ -55,8 +167,8 @@ static bool ensure_capacity(workload_spec_t* spec, size_t additional) {
     return true;
 }
 
-static uint64_t next_unique_id(const workload_spec_t* spec, uint64_t* next_id) {
-    while (*next_id != 0 && id_exists(spec, *next_id)) {
+static uint64_t next_unique_id(const id_set_t* ids, uint64_t* next_id) {
+    while (*next_id != 0 && id_set_contains(ids, *next_id)) {
         (*next_id)++;
     }
     if (*next_id == 0) return 0;
@@ -108,50 +220,55 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
     }
 
     uint64_t next_id = 1;
+    id_set_t ids = {0};
     size_t line_number = 0;
-    char* saveptr = NULL;
-    char* line = strtok_r(copy, "\r\n", &saveptr);
+    char* line = copy;
 
     while (line) {
         line_number++;
+        char* next_line = strpbrk(line, "\r\n");
+        if (next_line) {
+            char terminator = *next_line;
+            *next_line++ = '\0';
+            if (terminator == '\r' && *next_line == '\n') next_line++;
+        }
         while (isspace((unsigned char)*line)) line++;
         if (*line == '\0' || *line == '#') {
-            line = strtok_r(NULL, "\r\n", &saveptr);
+            line = next_line;
             continue;
         }
 
-        char cmd[32] = {0};
-        if (sscanf(line, "%31s", cmd) != 1) {
-            line = strtok_r(NULL, "\r\n", &saveptr);
+        char* tok[8] = {0};
+        size_t ntok = fields(line, tok, 7);
+        if (ntok == 0) {
+            line = next_line;
             continue;
         }
+        char* cmd = tok[0];
 
         if (strcmp(cmd, "TASK") == 0) {
             uint64_t tid = 0;
-            char prio_str[16] = {0};
             uint32_t sleep_ms = 0;
             uint64_t iters = 0;
             int64_t payload = 0;
-            char extra[2] = {0};
-
-            int n = sscanf(line, "TASK %" SCNu64 " %15s %" SCNu32 " %" SCNu64 " %" SCNd64 " %1s",
-                           &tid, prio_str, &sleep_ms, &iters, &payload, extra);
-            if (n != 5 || tid == 0) {
+            if (ntok != 6 || !parse_u64(tok[1], &tid) || !parse_u32(tok[3], &sleep_ms) ||
+                !parse_u64(tok[4], &iters) || !parse_i64(tok[5], &payload) || tid == 0) {
                 fprintf(stderr, "workload parser: invalid TASK on line %zu\n", line_number);
                 goto fail;
             }
 
             taskforge_task_priority_t prio;
-            if (!parse_priority(prio_str, &prio)) {
+            if (!parse_priority(tok[2], &prio)) {
                 fprintf(stderr, "workload parser: invalid priority on line %zu\n", line_number);
                 goto fail;
             }
-            if (id_exists(spec, tid)) {
+            if (id_set_contains(&ids, tid)) {
                 fprintf(stderr, "workload parser: duplicate task id %" PRIu64 " on line %zu\n", tid, line_number);
                 goto fail;
             }
             if (!ensure_capacity(spec, 1)) goto fail;
 
+            if (!id_set_insert(&ids, tid)) goto fail;
             spec->tasks[spec->count++] = (workload_task_desc_t){
                 .task_id = tid,
                 .prio = prio,
@@ -162,29 +279,27 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
             if (next_id <= tid) next_id = (tid == UINT64_MAX) ? 0 : tid + 1;
         } else if (strcmp(cmd, "REPEAT") == 0) {
             size_t rep = 0;
-            char prio_str[16] = {0};
             uint32_t sleep_ms = 0;
             uint64_t iters = 0;
             int64_t payload = 0;
-            char extra[2] = {0};
-
-            int n = sscanf(line, "REPEAT %zu TASK %15s %" SCNu32 " %" SCNu64 " %" SCNd64 " %1s",
-                           &rep, prio_str, &sleep_ms, &iters, &payload, extra);
-            if (n != 5 || rep == 0) {
+            if (ntok != 7 || strcmp(tok[2], "TASK") != 0 || !parse_size(tok[1], &rep) ||
+                !parse_u32(tok[4], &sleep_ms) || !parse_u64(tok[5], &iters) ||
+                !parse_i64(tok[6], &payload) || rep == 0) {
                 fprintf(stderr, "workload parser: invalid REPEAT on line %zu\n", line_number);
                 goto fail;
             }
 
             taskforge_task_priority_t prio;
-            if (!parse_priority(prio_str, &prio)) {
+            if (!parse_priority(tok[3], &prio)) {
                 fprintf(stderr, "workload parser: invalid priority on line %zu\n", line_number);
                 goto fail;
             }
             if (!ensure_capacity(spec, rep)) goto fail;
 
             for (size_t r = 0; r < rep; r++) {
-                uint64_t id = next_unique_id(spec, &next_id);
+                uint64_t id = next_unique_id(&ids, &next_id);
                 if (id == 0) goto fail;
+                if (!id_set_insert(&ids, id)) goto fail;
                 spec->tasks[spec->count++] = (workload_task_desc_t){
                     .task_id = id,
                     .prio = prio,
@@ -198,14 +313,16 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
             goto fail;
         }
 
-        line = strtok_r(NULL, "\r\n", &saveptr);
+        line = next_line;
     }
 
     free(copy);
+    id_set_destroy(&ids);
     return spec;
 
 fail:
     free(copy);
+    id_set_destroy(&ids);
     workload_spec_destroy(spec);
     return NULL;
 }
@@ -237,6 +354,13 @@ workload_spec_t* workload_spec_parse_file(const char* filepath) {
 
     size_t rd = fread(buf, 1, (size_t)sz, f);
     if (ferror(f) || rd != (size_t)sz) {
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
+    /* The string parser deliberately accepts a C string.  Reject binary
+     * input here rather than silently parsing only the prefix before NUL. */
+    if (memchr(buf, '\0', rd) != NULL) {
         free(buf);
         fclose(f);
         return NULL;

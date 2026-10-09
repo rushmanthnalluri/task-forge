@@ -181,6 +181,10 @@ taskforge_status_t queue_push_timeout(taskforge_queue_t* q, const taskforge_task
         rc = pthread_cond_timedwait(&q->not_full, &q->mutex, &ts);
     }
 
+    if (rc != 0 && rc != ETIMEDOUT) {
+        pthread_mutex_unlock(&q->mutex);
+        return TASKFORGE_ERR_FAILED;
+    }
     if (q->shutdown || q->draining) {
         pthread_mutex_unlock(&q->mutex);
         return TASKFORGE_ERR_SHUTDOWN;

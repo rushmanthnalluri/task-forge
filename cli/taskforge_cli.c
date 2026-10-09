@@ -26,6 +26,8 @@ typedef struct {
 
 static bool parse_positive_size(const char* text, size_t* out) {
     if (!text || !out || *text == '\0' || *text == '-') return false;
+    for (const unsigned char* p = (const unsigned char*)text; *p; p++)
+        if (*p < '0' || *p > '9') return false;
     char* end = NULL;
     errno = 0;
     unsigned long long value = strtoull(text, &end, 10);
@@ -36,6 +38,8 @@ static bool parse_positive_size(const char* text, size_t* out) {
 
 static bool parse_nonnegative_u32(const char* text, uint32_t* out) {
     if (!text || !out || *text == '\0' || *text == '-') return false;
+    for (const unsigned char* p = (const unsigned char*)text; *p; p++)
+        if (*p < '0' || *p > '9') return false;
     char* end = NULL;
     errno = 0;
     unsigned long long value = strtoull(text, &end, 10);
@@ -46,6 +50,10 @@ static bool parse_nonnegative_u32(const char* text, uint32_t* out) {
 
 static bool parse_int_value(const char* text, int* out) {
     if (!text || !out || *text == '\0') return false;
+    const char* digits = text + (*text == '-' || *text == '+');
+    if (*digits == '\0') return false;
+    for (const unsigned char* p = (const unsigned char*)digits; *p; p++)
+        if (*p < '0' || *p > '9') return false;
     char* end = NULL;
     errno = 0;
     long value = strtol(text, &end, 10);
@@ -117,15 +125,12 @@ int main(int argc, char** argv) {
     config.log_file_path = "taskforge_tasks.log";
 
     if (argc > 1) {
-        char* end = NULL;
-        errno = 0;
-        unsigned long long requested = strtoull(argv[1], &end, 10);
-        if (end == argv[1] || *end != '\0' || errno == ERANGE ||
-            requested == 0 || requested > SIZE_MAX) {
+        size_t requested;
+        if (!parse_positive_size(argv[1], &requested)) {
             fprintf(stderr, "Error: worker count must be a positive integer in range\n");
             return 1;
         }
-        config.num_workers = (size_t)requested;
+        config.num_workers = requested;
     }
 
     printf("[Init] Initializing TaskForge pool (%zu workers, %s priority, %s work-stealing)...\n",
@@ -148,7 +153,15 @@ int main(int argc, char** argv) {
             break;
         }
 
-        /* Strip newline */
+        /* Do not interpret a truncated command as a valid prefix. */
+        if (!strpbrk(line, "\r\n") && !feof(stdin)) {
+            int ch;
+            while ((ch = fgetc(stdin)) != '\n' && ch != '\r' && ch != EOF) {}
+            printf("[Error] Command line is too long (maximum %zu characters).\n",
+                   sizeof(line) - 2);
+            continue;
+        }
+        /* Strip newline. */
         line[strcspn(line, "\r\n")] = '\0';
         if (strlen(line) == 0) continue;
 

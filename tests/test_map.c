@@ -11,6 +11,7 @@ static void* nested_map_task(void* arg) {
 }
 
 static void* reentrant_map_task(void* arg) {
+    (void)arg;
     void** results = calloc(3, sizeof(*results));
     void* items[3] = {(void*)1, (void*)2, (void*)3};
     assert(results != NULL);
@@ -57,6 +58,14 @@ int main(void) {
         assert((intptr_t)results[i] == expected);
     }
     printf("  [PASS] taskforge_map mapped %zu elements correctly in parallel.\n", count);
+
+    /* Regression: map must snapshot inputs before clearing aliased results. */
+    void* in_place[4] = {(void*)1, (void*)2, (void*)3, (void*)4};
+    assert(taskforge_map(pool, multiply_by_five, in_place, 4, in_place) == TASKFORGE_OK);
+    for (size_t i = 0; i < 4; i++) {
+        assert((intptr_t)in_place[i] == (intptr_t)(i + 1) * 5);
+    }
+    printf("  [PASS] In-place taskforge_map preserves aliased input items.\n");
 
     /*
      * Regression: a taskforge_map call from a worker must not deadlock when
