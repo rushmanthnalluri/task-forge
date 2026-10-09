@@ -1,7 +1,7 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 23:03 IST  
+**Last confirmed execution time:** 2026-10-09 23:02 IST  
 **Baseline branch:** `main`  
 **Baseline commit:** `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`  
 **Coverage status:** In progress; see subsystem ledger below.
@@ -21,7 +21,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Resize can hang indefinitely for valid callback behavior.
 - **Remediation:** Make worker-count reads atomic and keep worker-local deque mutexes alive across resize cycles; destroy them only during pool destruction after workers are joined.
 - **Regression test:** `tests/test_resize_stress.c` now exercises worker callbacks querying count/stats while a shrink is joining.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175) passed all five gates on head `3e3ebe6918d92ced72b0ea7914523bfd508b651c`; this documentation refresh requires revalidation.
 - **Commit:** `ce43a233a47d3ae9acf71b531b5257129764cb09` (source fix).
 
 ### TF-RESIZE-002 — Statistics race with worker resize/deque destruction

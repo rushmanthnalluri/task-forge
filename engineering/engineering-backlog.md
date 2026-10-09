@@ -1,9 +1,9 @@
 # Engineering backlog
 
-**Updated:** 2026-10-09 23:03 IST  
+**Updated:** 2026-10-09 23:02 IST  
 **Deadline:** 2026-10-10 12:50 IST  
 **Latest green main head:** `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`; post-merge run [37966256429](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966256429) passed all five gates.  
-**Latest green queue-pop PR head:** `c2aff127140d1ff85f26973457d1d9a04ef71409`; run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates. This documentation refresh requires revalidation.
+**Latest green queue-pop PR head:** `3e3ebe6918d92ced72b0ea7914523bfd508b651c`; run [37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175) passed all five gates. This documentation refresh requires revalidation.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
 
@@ -21,7 +21,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 - [x] **MAP-1: Correct timeout report statuses.** Timed-out, canceled, completed, and still-running items are distinguished; running tasks are not claimed to have been interrupted.
 - [x] **MAP-2: Preserve per-item reports when a later submission fails.** Drain prior futures and populate their actual status, error, and result. Regression uses a one-worker/capacity-one pool with concurrent immediate shutdown.
 - [x] **MAP-3: Enforce timeout semantics for inline/nested map calls.** Worker-inline execution checks the monotonic deadline between callbacks, preserves completed results, and reports unstarted items as canceled. Regression verified by all five gates in run [37966033793](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966033793).
-- [x] **QUEUE-2: Make `queue_pop` semantics match its contract.** `queue_pop` blocks until work or shutdown; work-stealing workers use `queue_pop_timeout` for polling. Regression tests cover idle timeout, blocking wake-on-push, and shutdown wakeup. All five gates passed on PR #8 head `c2aff127` in [run 37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813).
+- [x] **QUEUE-2: Make `queue_pop` semantics match its contract.** `queue_pop` blocks until work or shutdown; work-stealing workers use `queue_pop_timeout` for polling. Regression tests cover idle timeout, blocking wake-on-push, and shutdown wakeup. All five gates passed on PR #8 head `3e3ebe69` in [run 37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175).
 - [ ] **FUTURE-1: Expand cancellation race tests.** Cover cancellation before dequeue, the transition to RUNNING, and immediate shutdown with exactly-once cleanup.
 - [ ] **PARSER-1: Add parser property/fuzz coverage.** Malformed, huge, and boundary-valued specs must fail safely without integer overflow or unbounded unexpected allocation.
 - [ ] **LOG-1: Review logger I/O failure behavior.** Define what happens when write/flush fails and ensure logging failures cannot corrupt pool lifecycle.

@@ -1,8 +1,8 @@
 # Mission state
 
-**Last confirmed execution:** 2026-10-09 23:03 IST  
+**Last confirmed execution:** 2026-10-09 23:02 IST  
 **Hard deadline:** 2026-10-10 12:50 IST (Asia/Kolkata)  
-**Time remaining at this update:** approximately 13 hours 51 minutes.
+**Time remaining at this update:** approximately 13 hours 48 minutes.
 
 ## Repository and branches
 
@@ -26,7 +26,7 @@
 
 ## Current follow-up: queue pop contract
 
-The public `queue_pop` now blocks until work or shutdown. A separate `queue_pop_timeout` supports periodic polling in work-stealing workers. Regression tests cover timeout on an empty queue, blocking beyond 50 ms until a task is pushed, and shutdown waking a blocked pop. All five gates passed on PR #8 head `c2aff127`; this documentation refresh must be revalidated.
+The public `queue_pop` now blocks until work or shutdown. A separate `queue_pop_timeout` supports periodic polling in work-stealing workers. Regression tests cover timeout on an empty queue, blocking beyond 50 ms until a task is pushed, and shutdown waking a blocked pop. All five gates passed on PR #8 head `3e3ebe69`; this documentation refresh must be revalidated.
 
 ## Remaining risks and blockers
 
