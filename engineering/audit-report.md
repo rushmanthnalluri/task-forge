@@ -28,9 +28,9 @@
 - **Severity:** P2; **confidence:** high.
 - **Evidence:** baseline client used `read_line()` to consume a response body even though the header advertised a byte length.
 - **Impact:** valid handler results containing newlines could be truncated or misframed.
-- **Remediation:** read exactly the advertised byte count and validate the required trailing newline; reject invalid lengths and response status values.
-- **Regression test:** a handler returns `first line\nsecond line`; client must receive the exact string.
-- **Status:** implemented on `fix/ipc-protocol-framing-main`; remote CI pending.
+- **Remediation:** read exactly the advertised byte count and validate the required trailing newline; reject invalid lengths and response status values. A single monotonic deadline now covers response header and body reads.
+- **Regression tests:** a handler returns `first line\nsecond line`; client must receive the exact string. A slow-trickle response body must hit the total deadline rather than extending it for each byte.
+- **Status:** implemented on `fix/ipc-protocol-framing-main`; latest combined CI pending.
 
 ### TF-IPC-003 — Unsupported request protocol versions were not rejected reliably
 
@@ -64,6 +64,14 @@
 - **Impact:** downstream users cannot infer permission to use, modify, or redistribute the project.
 - **Remediation:** repository owner must choose the intended license; do not add a license without that decision.
 - **Status:** blocked on owner choice.
+
+### TF-IPC-005 — `server_stop` removes the socket pathname but cannot stop the listener
+
+- **Severity:** P2 (API contract clarity); **confidence:** high.
+- **Evidence:** the function only unlinks the filesystem socket entry; the server loop blocks in `accept()` and receives no stop signal.
+- **Impact:** callers may infer that a listening server process has been terminated when it is still running but no longer reachable via that pathname.
+- **Remediation:** document the exact behavior and call-site ownership requirements; a future true-stop API needs an explicit, authenticated shutdown channel or server handle rather than a public magic request.
+- **Status:** documented in `include/taskforge/ipc.h` and README; true process shutdown remains unsupported by this API.
 
 ### TF-DOC-002 — README inventory is behind the repository tree
 
