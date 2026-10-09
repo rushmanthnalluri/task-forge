@@ -137,8 +137,20 @@ static taskforge_status_t map_impl(taskforge_pool_t* pool,
         if (s != TASKFORGE_OK && overall_status == TASKFORGE_OK) {
             overall_status = s;
             if (s == TASKFORGE_ERR_TIMEOUT) {
+                /* If the timed-out item has not started, avoid running it after
+                 * the caller has already received a timeout result. */
+                (void)taskforge_future_cancel(futures[i]);
                 for (size_t j = i + 1; j < count; j++) {
-                    (void)taskforge_future_cancel(futures[j]);
+                    bool cancelled = taskforge_future_cancel(futures[j]);
+                    void* item_result = NULL;
+                    taskforge_status_t item_status = cancelled
+                        ? TASKFORGE_ERR_CANCELLED
+                        : taskforge_future_wait_timeout(futures[j], 0, &item_result);
+                    if (report) {
+                        report[j].status = item_status;
+                        report[j].task_error = taskforge_future_get_error(futures[j]);
+                        report[j].result = item_status == TASKFORGE_OK ? item_result : NULL;
+                    }
                     taskforge_future_release(futures[j]);
                 }
                 taskforge_future_release(futures[i]);
