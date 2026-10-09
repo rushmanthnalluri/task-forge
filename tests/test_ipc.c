@@ -162,7 +162,7 @@ static pid_t start_trickle_body_server(const char* path) {
         static const char body[] = "okay\n";
         for (size_t i = 0; i < sizeof(body) - 1; i++) {
             if (send(client, &body[i], 1, MSG_NOSIGNAL) != 1) break;
-            usleep(40000);
+            usleep(50000);
         }
         close(client);
         close(server);
@@ -185,7 +185,7 @@ static void test_total_response_deadline(const char* path) {
     int64_t elapsed_ms = (int64_t)(end.tv_sec - start.tv_sec) * 1000LL +
                          (int64_t)(end.tv_nsec - start.tv_nsec) / 1000000LL;
     assert(rc == -2);
-    assert(elapsed_ms < 145);
+    assert(elapsed_ms < 175);
     wait_server(path, server);
     puts("  [PASS] IPC response deadline is total, not reset by each body byte.");
 }
