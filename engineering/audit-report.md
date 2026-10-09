@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 22:56 IST  
+**Last confirmed execution time:** 2026-10-09 22:59 IST  
 **Baseline branch:** `main`  
-**Baseline commit:** `3c4b115da5e5bb14516d707858581aa7e62a240c`  
+**Baseline commit:** `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -123,7 +123,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Direct callers could interpret a temporary idle interval as a stopped queue.
 - **Remediation:** Split the API: `queue_pop` now blocks until work or shutdown, while `queue_pop_timeout` is used by work-stealing workers for periodic local-deque polling.
 - **Regression tests:** Empty-queue timed pop returns on timeout without stopping the queue; blocking pop remains blocked beyond 50 ms, wakes on a pushed task, and returns false when an empty queue is shut down.
-- **Status:** Implemented on `fix/queue-pop-contract`; targeted regression added; CI pending.
+- **Status:** Implemented on PR #8 code/test head `e29d9680d5311819c8323b8999d00496bda2ede0`; all five gates passed in [run 37966495579](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966495579). Subsequent documentation-only updates require revalidation.
 
 ### TF-DOC-001 — Repository has no license declaration
 
@@ -151,9 +151,9 @@ No dependency manifest or third-party package lockfile is present in the tracked
 |---|---|---|
 | Repository tree / tracked paths | Complete recursive tree; 44 files | Inspect every remaining file and git history before claiming full semantic coverage |
 | Pool lifecycle / resize / stats | Targeted source review | Verify mission branch via CI; expand concurrent shutdown/resize/stats tests |
-| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery and blocking/timed pop regressions added | Producer liveness passed all five gates on `b6c9eac`; queue-pop contract follow-up is pending CI |
+| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery and blocking/timed pop regressions added | Producer liveness passed all five gates on `b6c9eac`; queue-pop code/test head `e29d968` passed all five gates; final docs head needs revalidation |
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
-| Map API | Source + tests; deterministic timeout and submission-failure report regressions added | All five gates passed on code/test head `b6c9eac`; final docs head needs revalidation; inline timeout semantics remain open |
+| Map API | Source + tests; deterministic timeout, submission-failure, and inline-deadline regressions added | All five gates passed on `b6c9eac` and inline-timeout PR #7 run `37966033793`; inline timeout fix is merged |
 | Parser / workload execution | Source + parser tests | More fuzz/property tests and resource-limit behavior |
 | IPC | Source + header + tests; multiline, invalid argument, path safety, version, timeout, and error-fallback regressions added | Verify combined mission-branch CI; server_stop remains path-unlink only by documented contract |
 | CLI | Entry point and command handling reviewed partially | Finish remaining command/signal/error-path review |

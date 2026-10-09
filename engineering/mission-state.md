@@ -1,8 +1,8 @@
 # Mission state
 
-**Last confirmed execution:** 2026-10-09 22:56 IST  
+**Last confirmed execution:** 2026-10-09 22:59 IST  
 **Hard deadline:** 2026-10-10 12:50 IST (Asia/Kolkata)  
-**Time remaining at this update:** approximately 13 hours 54 minutes.
+**Time remaining at this update:** approximately 13 hours 51 minutes.
 
 ## Repository and branches
 
@@ -11,7 +11,8 @@
 - Consolidated audit PR #5 merged; duplicate IPC PRs #3 and #6 closed as superseded.
 - Inline map timeout PR #7 merged as `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`.
 - Post-merge CI run [37966256429](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966256429) passed all five gates on main.
-- Current follow-up branch: `fix/queue-pop-contract`; no PR opened yet. Latest known verification-record commit before this state refresh: `7b4737c36647342bb541bdeac2aeaaa5f2b992e3`. This state refresh advances the branch tip.
+- Current follow-up PR #8: https://github.com/rushmanthnalluri/task-forge/pull/8 on branch `fix/queue-pop-contract`.
+- Code/test head `e29d9680d5311819c8323b8999d00496bda2ede0` passed all five gates in run [37966495579](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966495579). This engineering-record refresh advances the PR head and requires revalidation.
 - No local checkout is available; repository changes use the GitHub connector and validation uses observed GitHub Actions results.
 
 ## Latest verified work
@@ -25,7 +26,7 @@
 
 ## Current follow-up: queue pop contract
 
-The public `queue_pop` now blocks until work or shutdown. A separate `queue_pop_timeout` supports periodic polling in work-stealing workers. Regression tests cover timeout on an empty queue, blocking beyond 50 ms until a task is pushed, and shutdown waking a blocked pop. Code/tests/docs are on `fix/queue-pop-contract`; **CI has not yet run for this branch**.
+The public `queue_pop` now blocks until work or shutdown. A separate `queue_pop_timeout` supports periodic polling in work-stealing workers. Regression tests cover timeout on an empty queue, blocking beyond 50 ms until a task is pushed, and shutdown waking a blocked pop. Code/test head passed all five gates; the upcoming documentation-only head must be revalidated.
 
 ## Remaining risks and blockers
 
@@ -37,7 +38,7 @@ The public `queue_pop` now blocks until work or shutdown. A separate `queue_pop_
 
 ## Next actions
 
-1. Open a PR for `fix/queue-pop-contract` and wait for all five CI gates on the latest head.
+1. Wait for all five CI gates on the latest documentation-updated PR #8 head.
 2. If any gate fails, inspect logs, fix the root cause, and add regression coverage.
 3. Merge only after the exact latest head is green; verify post-merge CI.
 4. Continue with lifecycle race coverage, then the benchmark output failure.

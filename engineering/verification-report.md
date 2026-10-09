@@ -1,6 +1,6 @@
 # Verification report
 
-**Updated:** 2026-10-09 22:56 IST  
+**Updated:** 2026-10-09 22:59 IST  
 **Mission deadline:** 2026-10-10 12:50 IST  
 **Main:** `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`  
 **Post-merge evidence:** [GitHub Actions run 37966256429](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966256429) — all five gates passed on main.
@@ -22,7 +22,7 @@ The inline-map-timeout follow-up passed all five gates on PR head `e8fa17d39403a
 - Branch: `fix/queue-pop-contract`
 - Change: separate blocking `queue_pop` from timed `queue_pop_timeout`; work-stealing workers use the timed variant to poll local deques.
 - Regression coverage: timed idle return, blocking pop waiting beyond 50 ms until a task arrives, and shutdown waking a blocked empty-queue pop.
-- Status: code, tests, API docs, and engineering records are committed on the branch. **CI not yet verified**; open a PR and wait for all five gates on the latest head before merge.
+- PR #8: https://github.com/rushmanthnalluri/task-forge/pull/8. Code/test head `e29d9680d5311819c8323b8999d00496bda2ede0` passed all five gates in [run 37966495579](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966495579). Engineering-record edits after that green head require a fresh run before merge.
 
 ## Tools and checks actually executed
 
@@ -37,7 +37,8 @@ The inline-map-timeout follow-up passed all five gates on PR head `e8fa17d39403a
 - [x] Consolidated audit PR #5 merged and all five gates passed.
 - [x] Inline map timeout PR #7 merged and all five gates passed.
 - [x] Post-merge main CI passed on `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`.
-- [ ] Open PR for `fix/queue-pop-contract`, verify all five gates, and merge only if the latest head is green.
+- [x] PR #8 opened; all five gates passed on code/test head `e29d968`.
+- [ ] Confirm all five gates on the latest documentation-updated PR #8 head, then merge only if green.
 - [ ] Continue with lifecycle race coverage and remaining findings.
 - [ ] License choice requires owner authorization; do not infer a license.
 - [ ] Static analysis, security alert scans, and non-Ubuntu compatibility checks remain unverified.
