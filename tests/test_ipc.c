@@ -237,6 +237,12 @@ int main(void) {
     test_total_response_deadline(path);
     pid_t server = start_server(path, handlers, 5, 1);
     char result[128]; int error = 0;
+    /* Line-framed requests must reject payloads that cannot round-trip. */
+    assert(taskforge_ipc_client_call(path, "echo", "line\nbreak", 10,
+                                     result, sizeof(result), &error, 1000) == -1);
+    const char binary_arg[] = {'a', '\0', 'b'};
+    assert(taskforge_ipc_client_call(path, "echo", binary_arg, sizeof(binary_arg),
+                                     result, sizeof(result), &error, 1000) == -1);
     assert(taskforge_ipc_client_call(path, "echo", "hello", 5, result, sizeof(result), &error, 1000) == 0);
     assert(strcmp(result, "hello") == 0 && error == 0);
     wait_server(path, server);
