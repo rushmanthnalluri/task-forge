@@ -1,7 +1,7 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 22:37 IST  
+**Last confirmed execution time:** 2026-10-09 22:39 IST  
 **Baseline branch:** `main`  
 **Baseline commit:** `3c4b115da5e5bb14516d707858581aa7e62a240c`  
 **Coverage status:** In progress; see subsystem ledger below.
@@ -58,8 +58,9 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Severity/confidence:** P2 / medium
 - **Evidence:** On timeout at index `i`, later futures are canceled and released, but their report entries retain the initial generic failure values rather than the resulting canceled state/status.
 - **Impact:** Callers cannot reliably distinguish timed-out, canceled, and failed items in the report.
-- **Proposed remediation:** Populate per-item report statuses for futures canceled after the shared deadline and document that running tasks cannot be forcibly interrupted.
-- **Status:** Open; not yet changed.
+- **Remediation:** When the shared deadline expires, cancel the current item if it is still pending; for later items, record `CANCELLED` when cancellation succeeds or perform a zero-time terminal-state check so completed, failed, and still-running items are reported accurately. Running tasks are not forcibly interrupted.
+- **Regression test:** A one-worker pool runs a slow first item and leaves the second queued; the report must mark the first `TIMEOUT` and the second `CANCELLED`.
+- **Status:** Implemented on `mission/engineering-hardening-2026-10-09`; combined CI pending.
 
 ## Subsystem coverage ledger
 
@@ -69,7 +70,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 | Pool lifecycle / resize / stats | Targeted source review | Verify mission branch via CI; expand concurrent shutdown/resize/stats tests |
 | Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery added | Verify latest branch CI; strict FIFO producer fairness intentionally not guaranteed |
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
-| Map API | Source + tests | Per-item report status on timeout |
+| Map API | Source + tests; deterministic one-worker timeout report regression added | Verify latest mission-branch CI |
 | Parser / workload execution | Source + parser tests | More fuzz/property tests and resource-limit behavior |
 | IPC | Source + header + tests | IPC hardening is being verified separately in PR #6 |
 | CLI | Entry point and command handling reviewed partially | Finish remaining command/signal/error-path review |
