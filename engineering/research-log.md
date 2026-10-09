@@ -29,9 +29,9 @@
 
 **Decision:** Read exactly the advertised number of bytes, then validate the protocol's trailing newline delimiter. Reject lengths that exceed configured payload/result limits. Add a multiline response regression test.
 
-**Acceptance criteria:** The response `first line\nsecond line` round-trips exactly; malformed delimiters and invalid lengths are rejected.
+**Acceptance criteria:** The response `first line\nsecond line` round-trips exactly; malformed delimiters and invalid lengths are rejected. One monotonic deadline spans response-header and response-body reads, so slow trickle traffic cannot renew the timeout for every byte.
 
-## R-003 — Error contract consistency
+## R-003 — Total response deadline\n\n**Question:** Should a slow stream be allowed to reset the client timeout for each byte?\n\n**Repository evidence:** the prior reader called `poll()` with the full timeout before each byte, so a peer could stretch a nominal timeout across an arbitrarily long header/body.\n\n**Decision:** Use `CLOCK_MONOTONIC` to establish one deadline after the request is sent; header and body reads share it. The server's request-line reader also uses a total deadline. Add a slow-trickle response regression test.\n\n**Acceptance criteria:** A response body that trickles bytes past the deadline returns timeout promptly.\n\n## R-004 — Error contract consistency
 
 **Question:** What happens when a handler reports failure but leaves its error code at zero?
 
@@ -41,7 +41,7 @@
 
 **Acceptance criteria:** A failing handler with no explicit error cannot be observed as successful.
 
-## R-004 — CI evidence and race findings
+## R-005 — CI evidence and race findings
 
 **Evidence:**
 - PR #3 workflow run #172: https://github.com/rushmanthnalluri/task-forge/actions/runs/37962540470 — build/tests/CLI, ASan+UBSan, Valgrind, and million-task soak passed; TSan failed with a race report in pool initialization on the older base revision.
