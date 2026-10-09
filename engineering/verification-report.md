@@ -76,7 +76,7 @@ CI success provides evidence for the tests and platforms actually exercised, not
 
 ## Latest combined CI queue
 
-- Mission branch code/test commit `3298de8549f30bd2aa4ad77c6a65800fa6c59dca`: workflow run #184? (run ID 37964616700 is queued against this head at the time of state update).
+- Mission branch code/test commit `3298de8549f30bd2aa4ad77c6a65800fa6c59dca`: workflow run ID `37964616700` is queued against the current head at the time of state update.
 - The queue-only implementation revision `5f99571c39df7309693d3e445e1292dff46edef6` passed all five CI jobs in run `37964003934`; the concurrent-producer regression was included in run `37964033504`, with four jobs passing and Valgrind still in progress at last inspection.
 - Earlier IPC-only revision `2aa5972bac1faeac30c96f2e42d2799cce3432eb` passed all five jobs, but predates the slow-trickle deadline regression. Run `37963908247` has build/tests, ASan/UBSan, TSan, and million-task soak passed; Valgrind was still installing at last inspection.
 - These intermediate runs do not validate the latest combined head. The latest combined run must be observed before merge.
