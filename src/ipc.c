@@ -35,39 +35,67 @@ static int write_response(int fd, int ok, int error, const char* result, size_t 
     return write_all(fd, "\n", 1);
 }
 
-static int wait_readable(int fd, uint32_t timeout_ms) {
-    struct pollfd p = {fd, POLLIN, 0};
+static int deadline_after(uint32_t timeout_ms, struct timespec* deadline) {
+    if (clock_gettime(CLOCK_MONOTONIC, deadline) != 0) return -1;
+    deadline->tv_sec += timeout_ms / 1000U;
+    deadline->tv_nsec += (long)(timeout_ms % 1000U) * 1000000L;
+    if (deadline->tv_nsec >= 1000000000L) {
+        deadline->tv_sec++;
+        deadline->tv_nsec -= 1000000000L;
+    }
+    return 0;
+}
+
+static int wait_readable_until(int fd, const struct timespec* deadline) {
     for (;;) {
-        int rc = poll(&p, 1, timeout_ms > (uint32_t)INT_MAX ? INT_MAX : (int)timeout_ms);
+        struct timespec now;
+        if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) return -1;
+        int64_t remaining_ns =
+            (int64_t)(deadline->tv_sec - now.tv_sec) * 1000000000LL +
+            (int64_t)deadline->tv_nsec - now.tv_nsec;
+        if (remaining_ns <= 0) return -2;
+
+        int64_t remaining_ms = (remaining_ns + 999999LL) / 1000000LL;
+        if (remaining_ms > INT_MAX) remaining_ms = INT_MAX;
+        struct pollfd p = {fd, POLLIN, 0};
+        int rc = poll(&p, 1, (int)remaining_ms);
         if (rc < 0 && errno == EINTR) continue;
-        if (rc == 0) return -2;
         if (rc < 0) return -1;
+        if (rc == 0) continue;
         if (p.revents & (POLLERR | POLLNVAL)) return -1;
         if (p.revents & (POLLIN | POLLHUP)) return 0;
     }
 }
 
-static int read_line(int fd, char* buf, size_t cap, uint32_t timeout_ms) {
+static int read_line_until(int fd, char* buf, size_t cap,
+                           const struct timespec* deadline) {
     if (!buf || cap == 0) return -1;
     size_t n = 0;
     while (n + 1 < cap) {
-        int rc = wait_readable(fd, timeout_ms);
+        int rc = wait_readable_until(fd, deadline);
         if (rc != 0) return rc;
-        char c;
-        ssize_t got = recv(fd, &c, 1, 0);
+        char ch;
+        ssize_t got = recv(fd, &ch, 1, 0);
         if (got < 0 && errno == EINTR) continue;
         if (got <= 0) return -1;
-        if (c == '\n') { buf[n] = '\0'; return 0; }
-        buf[n++] = c;
+        if (ch == '\n') { buf[n] = '\0'; return 0; }
+        buf[n++] = ch;
     }
     return -3;
 }
 
-static int read_exact(int fd, void* buffer, size_t length, uint32_t timeout_ms) {
+static int read_line(int fd, char* buf, size_t cap, uint32_t timeout_ms) {
+    struct timespec deadline;
+    if (deadline_after(timeout_ms, &deadline) != 0) return -1;
+    return read_line_until(fd, buf, cap, &deadline);
+}
+
+static int read_exact_until(int fd, void* buffer, size_t length,
+                            const struct timespec* deadline) {
     unsigned char* out = buffer;
     size_t offset = 0;
     while (offset < length) {
-        int rc = wait_readable(fd, timeout_ms);
+        int rc = wait_readable_until(fd, deadline);
         if (rc != 0) return rc;
         ssize_t got = recv(fd, out + offset, length - offset, 0);
         if (got < 0 && errno == EINTR) continue;
@@ -75,14 +103,6 @@ static int read_exact(int fd, void* buffer, size_t length, uint32_t timeout_ms) 
         offset += (size_t)got;
     }
     return 0;
-}
-
-static int unlink_socket_if_same(const char* path, const struct stat* expected) {
-    struct stat current;
-    if (lstat(path, &current) != 0) return errno == ENOENT ? 0 : -1;
-    if (!S_ISSOCK(current.st_mode) || current.st_dev != expected->st_dev ||
-        current.st_ino != expected->st_ino) return -1;
-    return unlink(path);
 }
 
 int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* handlers,
@@ -181,8 +201,10 @@ int taskforge_ipc_client_call(const char* path, const char* name, const char* ar
     char* request = malloc(len + TASKFORGE_IPC_MAX_NAME + 32); if (!request) { close(fd); return -1; }
     int n = snprintf(request, len + TASKFORGE_IPC_MAX_NAME + 32, "%u %s %.*s\n", TASKFORGE_IPC_VERSION, name, (int)len, arg ? arg : "");
     int rc = write_all(fd, request, (size_t)n); free(request); if (rc) { close(fd); return -1; }
+    struct timespec deadline;
+    if (deadline_after(timeout_ms, &deadline) != 0) { close(fd); return -1; }
     char header[128];
-    rc = read_line(fd, header, sizeof(header), timeout_ms);
+    rc = read_line_until(fd, header, sizeof(header), &deadline);
     if (rc) { close(fd); return rc; }
     unsigned version, ok;
     int err, consumed = 0;
@@ -193,10 +215,10 @@ int taskforge_ipc_client_call(const char* path, const char* name, const char* ar
         close(fd);
         return -1;
     }
-    rc = read_exact(fd, result, length, timeout_ms);
+    rc = read_exact_until(fd, result, length, &deadline);
     if (rc == 0) {
         char delimiter = '\0';
-        rc = read_exact(fd, &delimiter, 1, timeout_ms);
+        rc = read_exact_until(fd, &delimiter, 1, &deadline);
         if (rc == 0 && delimiter != '\n') rc = -1;
     }
     if (rc == 0) {
