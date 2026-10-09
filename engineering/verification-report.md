@@ -1,33 +1,28 @@
 # Verification report
 
-**Updated:** 2026-10-09 22:50 IST  
+**Updated:** 2026-10-09 22:53 IST  
 **Mission deadline:** 2026-10-10 12:50 IST  
-**Mission branch:** `mission/engineering-hardening-2026-10-09`  
-**Latest fully green code/test head:** `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a`  
-**Evidence:** [GitHub Actions run 37965261107](https://github.com/rushmanthnalluri/task-forge/actions/runs/37965261107) — completed successfully at 2026-10-09 17:18:34 UTC / 22:48:34 IST.
+**Repository main:** `a8be96862ad004247e2a0c36e44250e03ce7960e`  
+**Post-merge evidence:** [GitHub Actions run 37965750569](https://github.com/rushmanthnalluri/task-forge/actions/runs/37965750569) — all five gates passed on `main`.
 
-## Latest combined code/test verification
+## Latest main verification after the consolidated audit merge
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build, full tests, and CLI smoke test | **PASS** | Run 37965261107, job conclusion `success` |
-| AddressSanitizer and UBSan | **PASS** | Run 37965261107, job conclusion `success` |
-| ThreadSanitizer | **PASS** | Run 37965261107, job conclusion `success` |
-| Valgrind Memcheck | **PASS** | Run 37965261107, job conclusion `success` |
-| One-million-task soak | **PASS** | Run 37965261107, job conclusion `success` |
+| Build, full tests, and CLI smoke test | **PASS** | Run 37965750569 |
+| AddressSanitizer and UBSan | **PASS** | Run 37965750569 |
+| ThreadSanitizer | **PASS** | Run 37965750569 |
+| Valgrind Memcheck | **PASS** | Run 37965750569 |
+| One-million-task soak | **PASS** | Run 37965750569 |
 
-The green code/test revision includes worker resize/statistics lifetime hardening, queue producer-liveness simplification and regression coverage, map timeout and partial-submission reporting, IPC framing/version/path/error/deadline hardening, and associated tests.
+Merged commit: `a8be96862ad004247e2a0c36e44250e03ce7960e`. The original PR-head run 37965605654 also passed all five gates before squash merge.
 
-## Final documentation revision
+## Current follow-up branch
 
-The engineering-record updates after code/test head `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a` are documentation-only and do not change runtime code. They still require a fresh CI run on the final PR head before merge. Do not treat the earlier green SHA as a pass for the final head.
-
-The workflow uses `cancel-in-progress: true` for a workflow/ref concurrency group to cancel superseded runs on the same ref. This preserves the latest revision's required gates; it does not disable any gate.
-
-## Baseline verification
-
-- Baseline main commit: `3c4b115da5e5bb14516d707858581aa7e62a240c`.
-- Prior-main CI run [37963052958](https://github.com/rushmanthnalluri/task-forge/actions/runs/37963052958) passed before mission changes. This is historical baseline evidence, not a substitute for the combined run above.
+- Branch: `fix/inline-map-timeout`
+- Work: enforce timeout checks between worker-inline map callbacks, preserve results of callbacks that finish, stop starting later callbacks after deadline, and mark unstarted items canceled.
+- Regression: `tests/test_map.c` calls `taskforge_map_timeout_report` from a worker with a 50 ms deadline and a 150 ms first callback; it expects overall `TIMEOUT`, first item `OK`, and second item `CANCELLED`.
+- Status: code, test, API documentation, audit/backlog/research updates committed on the branch. **No CI result yet**; open a PR and wait for the latest head's five gates before merge.
 
 ## Tools and checks actually executed
 
@@ -37,14 +32,13 @@ The workflow uses `cancel-in-progress: true` for a workflow/ref concurrency grou
 - Static analysis (clang-tidy/cppcheck), dependency scanning, and secret scanning: **not run**. No package manifest/lockfile is present, and the connected GitHub API did not expose the repository's security-alert endpoints.
 - Cross-platform builds: **not run**; evidence is for the configured Ubuntu GitHub Actions environment.
 
-## Remaining checks before merge
+## Remaining checks and risks
 
-- [x] All five configured gates passed on code/test head `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a`.
-- [ ] Confirm all five gates on the latest documentation-updated PR #5 head.
-- [ ] Final independent diff review and PR metadata cleanup.
-- [ ] Merge through normal PR flow only after latest checks are green.
-- [ ] Verify new `main` SHA and post-merge push-triggered CI.
+- [x] Consolidated PR #5 merged to `main`; duplicate PRs #3 and #6 closed as superseded.
+- [x] Post-merge CI passed all five gates on `a8be96862ad004247e2a0c36e44250e03ce7960e`.
+- [ ] Open PR for `fix/inline-map-timeout`, verify all five gates, and merge only if the latest head is green.
+- [ ] Continue with queue-pop contract and remaining lifecycle coverage.
+- [ ] License choice requires owner authorization; do not infer a license.
+- [ ] Static analysis, security alert scans, and non-Ubuntu compatibility checks remain unverified.
 
-## Known limitations
-
-CI success covers the tests and Linux environment actually exercised; it does not prove absence of all defects. Open items remain in `engineering/audit-report.md` and `engineering/engineering-backlog.md`, including inline map timeout semantics, queue pop contract clarity, lifecycle races, license selection, benchmark CSV error reporting, static analysis, and security scanning.
+CI success covers only the tests and Linux environment actually exercised; it does not prove absence of all defects.
