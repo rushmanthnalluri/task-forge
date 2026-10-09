@@ -2,7 +2,7 @@
 
 **Updated:** 2026-10-09 22:32:41 IST  
 **Mission branch:** `mission/engineering-hardening-2026-10-09`  
-**Branch head at last confirmed write:** `207fa944ff2026cf14103077ae686ce37f06e221`
+**Branch head at last confirmed write:** `1a013fe51bcc68281773c2360dce80fd4aa842b1` (queue tests); queue implementation/header commits `5f99571c39df7309693d3e445e1292dff46edef6` and `cce3ac33b1b5ff72d980ab1add95385e7a67e21c`.
 
 ## Baseline checks observed
 
@@ -46,3 +46,11 @@ Do not mark these as passed until the mission branch PR run reports success:
 ## Known limits
 
 CI success provides evidence for the tests and platforms actually exercised, not proof of absence of all defects. This report distinguishes prior-main results from branch results and must be updated with actual workflow URLs, job conclusions, timestamps, and commit IDs after each verification cycle.
+
+
+## Queue liveness remediation (pending latest CI)
+
+- Removed producer ticket/canceled-ticket heap bookkeeping from `src/queue.c` and its fields from `include/taskforge/queue.h`. This removes the `realloc` failure mode that could strand `producer_turn`.
+- Added a bounded-queue regression with 24 concurrent timed-out producers and a subsequent successful push/pop.
+- The change intentionally drops strict FIFO fairness among producers; this was not part of the public queue contract and is now documented.
+- No executable result is claimed until the latest mission-branch CI run completes.
