@@ -23,7 +23,9 @@ typedef struct {
 } taskforge_ipc_handler_t;
 
 /* The server accepts only registered handlers. It never receives function
- * pointers or process-local addresses from a client. The requested socket path
+ * pointers or process-local addresses from a client. Arguments are text bytes:
+ * embedded NUL, CR, and LF are rejected because requests use line framing.
+ * Response results may contain newline characters. The requested socket path
  * must not already exist; stale paths must be removed explicitly by their owner. */
 int taskforge_ipc_server_run(const char* socket_path,
                              const taskforge_ipc_handler_t* handlers,
