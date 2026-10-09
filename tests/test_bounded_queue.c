@@ -97,6 +97,51 @@ int main(void) {
     printf("  [PASS] Consumer drained all %d items, queue is now empty.\n", TEST_CAPACITY);
 
     queue_destroy(q);
+
+    /* Rejected producer attempts must not corrupt future queue progress. */
+    taskforge_queue_t* progress_q = queue_create(1, false);
+    assert(progress_q != NULL);
+    taskforge_task_t first = {
+        .task_id = 2001, .fn = dummy_task, .arg = (void*)(intptr_t)1,
+        .future = future_create(2001), .prio = TASKFORGE_PRIO_NORMAL
+    };
+    assert(first.future != NULL);
+    assert(queue_try_push(progress_q, &first) == TASKFORGE_OK);
+
+    taskforge_task_t rejected = {
+        .task_id = 2002, .fn = dummy_task, .arg = (void*)(intptr_t)2,
+        .future = future_create(2002), .prio = TASKFORGE_PRIO_NORMAL
+    };
+    assert(rejected.future != NULL);
+    assert(queue_try_push(progress_q, &rejected) == TASKFORGE_ERR_FULL);
+    future_release(rejected.future);
+    future_release(rejected.future);
+
+    taskforge_task_t timed_out = {
+        .task_id = 2003, .fn = dummy_task, .arg = (void*)(intptr_t)3,
+        .future = future_create(2003), .prio = TASKFORGE_PRIO_NORMAL
+    };
+    assert(timed_out.future != NULL);
+    assert(queue_push_timeout(progress_q, &timed_out, 10) == TASKFORGE_ERR_TIMEOUT);
+    future_release(timed_out.future);
+    future_release(timed_out.future);
+
+    taskforge_task_t popped;
+    assert(queue_try_pop(progress_q, &popped));
+    future_release(popped.future);
+    future_release(popped.future);
+
+    taskforge_task_t recovered = {
+        .task_id = 2004, .fn = dummy_task, .arg = (void*)(intptr_t)4,
+        .future = future_create(2004), .prio = TASKFORGE_PRIO_NORMAL
+    };
+    assert(recovered.future != NULL);
+    assert(queue_try_push(progress_q, &recovered) == TASKFORGE_OK);
+    assert(queue_try_pop(progress_q, &popped));
+    future_release(popped.future);
+    future_release(popped.future);
+    queue_destroy(progress_q);
+
     printf("[PASS] test_bounded_queue completed successfully!\n\n");
     return 0;
 }
