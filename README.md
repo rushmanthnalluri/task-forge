@@ -30,6 +30,10 @@ Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
   * High-level convenience API to map a function across an array of items in parallel and synchronize results.
 * **Workload Lexer & Parser (`workload_spec_t`)**:
   * Parses declarative workload specification scripts (`workload.spec`) to drive reproducible benchmark scenarios.
+* **Versioned Local IPC (`taskforge_ipc_*`)**:
+  * Uses a registered-handler Unix-domain socket protocol with bounded payloads, response-length framing, and a shared response-read deadline.
+  * Rejects unsupported protocol versions and malformed response framing; preserves non-socket paths instead of deleting them.
+  * Existing socket paths are not removed automatically. `taskforge_ipc_server_stop` only unlinks a socket pathname; it does not terminate a listening server.
 * **Signal-Safe Shutdown (`SIGINT`) & On-Disk Persistence**:
   * Gracefully catches `SIGINT` (Ctrl+C), drains accepted work, and joins workers.
   * Thread-safe disk logger recording timestamps, worker IDs, and durations to disk (`taskforge_tasks.log`).
@@ -79,7 +83,8 @@ taskforge/
 │   ├── queue.h               # Bounded ring-buffer queue & priority management
 │   ├── work_stealing.h       # Per-worker deques & theft protocol
 │   ├── log.h                 # Thread-safe on-disk execution logger
-│   └── parser.h              # Workload specification file parser
+│   ├── parser.h              # Workload specification file parser
+│   └── ipc.h                 # Versioned local IPC API
 ├── src/
 │   ├── future.c              # Future state machine and refcount reclamation
 │   ├── queue.c               # Bounded buffer, wait predicates, priority selection
@@ -87,18 +92,24 @@ taskforge/
 │   ├── work_stealing.c       # Deque push/pop/steal implementation
 │   ├── map.c                 # taskforge_map parallel collection mapper
 │   ├── log.c                 # File logging subsystem
-│   └── parser.c              # Workload spec lexer and runner
+│   ├── parser.c              # Workload spec lexer and runner
+│   └── ipc.c                 # Unix-domain socket IPC server/client
 ├── cli/
 │   └── taskforge_cli.c       # Interactive REPL console with SIGINT handler
 ├── tests/
 │   ├── test_bounded_queue.c  # Producer/consumer blocking, capacity limit & backpressure
 │   ├── test_futures.c        # Future wait, timed wait, and cancellation
-│   ├── test_shutdown.c       # Graceful drain vs immediate kill verification
-│   ├── test_priorities.c     # Multi-level priority order & starvation avoidance
-│   ├── test_work_stealing.c  # Theft verification & work distribution
+│   ├── test_ipc.c            # IPC framing, validation, timeout, and disconnect recovery
+│   ├── test_logging.c        # Logging subsystem tests
 │   ├── test_map.c            # Parallel collection mapping test
+│   ├── test_million_soak.c   # 1,000,000 tasks soak test (acceptance verification)
+│   ├── test_parser.c         # Workload parser tests
+│   ├── test_priorities.c     # Multi-level priority order & starvation avoidance
+│   ├── test_resize.c         # Worker pool resizing regression tests
+│   ├── test_resize_stress.c  # Concurrent resize/submission/stats stress
+│   ├── test_shutdown.c       # Graceful drain vs immediate shutdown verification
 │   ├── test_stress.c         # Multi-producer concurrency churn & race detection
-│   └── test_million_soak.c   # 1,000,000 tasks soak test (acceptance verification)
+│   └── test_work_stealing.c  # Theft verification & work distribution
 ├── benchmarks/
 │   ├── bench_scaling.c       # Worker scaling curve & contention ceiling tool
 │   └── bench_stealing_vs_global.c # Global queue vs work-stealing comparison
