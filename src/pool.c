@@ -44,7 +44,7 @@ struct taskforge_pool {
     pthread_cond_t shutdown_cond;
     size_t created_workers;
     size_t worker_capacity;
-    size_t operational_workers;
+    atomic_size_t operational_workers;
     pthread_mutex_t resize_mutex;
 };
 
@@ -142,7 +142,7 @@ static void* worker_loop(void* arg) {
             }
             /* 2. Try stealing from other workers (FIFO) */
             else {
-                size_t num = pool->operational_workers;
+                size_t num = atomic_load(&pool->operational_workers);
                 if (num > 1) {
                     size_t start_victim = (size_t)rand_r(&self->rng_seed) % num;
                     for (size_t i = 0; i < num; i++) {
@@ -371,7 +371,7 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
         pool->workers[i].initialized = true;
     }
 
-    pool->operational_workers = cfg.num_workers;
+    atomic_init(&pool->operational_workers, cfg.num_workers);
     return pool;
 }
 
@@ -597,7 +597,7 @@ int taskforge_pool_resize(taskforge_pool_t* pool, size_t worker_count) {
         pthread_mutex_unlock(&pool->resize_mutex);
         return TASKFORGE_ERR_SHUTDOWN;
     }
-    size_t old = pool->operational_workers;
+    size_t old = atomic_load(&pool->operational_workers);
     if (worker_count > old) {
         size_t started = old;
         for (size_t i = old; i < worker_count; i++) {
@@ -618,14 +618,14 @@ int taskforge_pool_resize(taskforge_pool_t* pool, size_t worker_count) {
             pool->created_workers++;
             started++;
         }
-        pool->operational_workers = started;
+        atomic_store(&pool->operational_workers, started);
         pool->config.num_workers = started;
         pthread_mutex_unlock(&pool->resize_mutex);
         return started == worker_count ? TASKFORGE_OK : TASKFORGE_ERR_NOMEM;
     }
     if (worker_count < old) {
         for (size_t i = worker_count; i < old; i++) atomic_store(&pool->workers[i].retiring, true);
-        pool->operational_workers = worker_count;
+        atomic_store(&pool->operational_workers, worker_count);
         pool->config.num_workers = worker_count;
         for (size_t i = worker_count; i < old; i++) {
             pthread_join(pool->workers[i].thread, NULL);
@@ -641,7 +641,7 @@ int taskforge_pool_resize(taskforge_pool_t* pool, size_t worker_count) {
 size_t taskforge_pool_worker_count(taskforge_pool_t* pool) {
     if (!pool) return 0;
     pthread_mutex_lock(&pool->resize_mutex);
-    size_t count = pool->operational_workers;
+    size_t count = atomic_load(&pool->operational_workers);
     pthread_mutex_unlock(&pool->resize_mutex);
     return count;
 }
