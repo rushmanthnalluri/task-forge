@@ -100,6 +100,28 @@ int main(void) {
     taskforge_pool_destroy(pool);
     printf("  [PASS] Graceful shutdown and pool destruction clean.\n");
 
+    /* Work-stealing graceful drain must also finish tasks prefetched locally. */
+    printf("  [Step] Testing graceful shutdown with work-stealing enabled...\n");
+    taskforge_pool_config_t drain_cfg = cfg;
+    drain_cfg.num_workers = 2;
+    drain_cfg.enable_work_stealing = true;
+    taskforge_pool_t* drain_pool = taskforge_pool_create(&drain_cfg);
+    assert(drain_pool != NULL);
+    int drain_before = atomic_load(&g_executed_tasks);
+    const int drain_tasks = 100;
+    for (int i = 0; i < drain_tasks; i++) {
+        int* value = malloc(sizeof(*value));
+        assert(value != NULL);
+        *value = i;
+        taskforge_future_t* fut = taskforge_submit(drain_pool, counting_task, value);
+        assert(fut != NULL);
+        taskforge_future_release(fut);
+    }
+    assert(taskforge_pool_shutdown(drain_pool, true) == TASKFORGE_OK);
+    assert(atomic_load(&g_executed_tasks) - drain_before == drain_tasks);
+    taskforge_pool_destroy(drain_pool);
+    printf("  [PASS] Graceful work-stealing shutdown drained all local/global tasks.\n");
+
     /* 1b. A worker must not attempt to join itself during shutdown. */
     printf("  [Step] Testing worker-initiated shutdown guard...\n");
     taskforge_pool_config_t self_cfg = cfg;
