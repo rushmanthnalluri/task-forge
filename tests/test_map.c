@@ -56,7 +56,17 @@ static void* shutdown_race_map_task(void* arg) {
 static void* shutdown_map_pool(void* arg) {
     taskforge_pool_t* pool = (taskforge_pool_t*)arg;
     while (!atomic_load(&map_first_started)) usleep(100);
-    usleep(10000);
+    /* Wait until the second item is definitely queued behind the running first
+     * item before shutdown rejects the third submission. */
+    bool second_is_queued = false;
+    for (int i = 0; i < 5000; i++) {
+        if (taskforge_pool_get_stats(pool).queued_tasks > 0) {
+            second_is_queued = true;
+            break;
+        }
+        usleep(1000);
+    }
+    assert(second_is_queued);
     assert(taskforge_pool_shutdown(pool, false) == TASKFORGE_OK);
     return NULL;
 }
