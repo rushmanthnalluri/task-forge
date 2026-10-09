@@ -373,6 +373,7 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
         }
     }
 
+    atomic_init(&pool->operational_workers, 0);
     for (size_t i = 0; i < cfg.num_workers; i++) {
         if (pthread_create(&pool->workers[i].thread, NULL, worker_loop, &pool->workers[i]) != 0) {
             taskforge_pool_shutdown(pool, false);
@@ -381,9 +382,9 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
         }
         pool->created_workers++;
         pool->workers[i].initialized = true;
+        atomic_store(&pool->operational_workers, pool->created_workers);
     }
 
-    atomic_init(&pool->operational_workers, cfg.num_workers);
     return pool;
 }
 
