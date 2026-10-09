@@ -1,6 +1,6 @@
 # Verification report
 
-**Updated:** 2026-10-09 22:32:41 IST  
+**Updated:** 2026-10-09 22:42 IST  
 **Mission branch:** `mission/engineering-hardening-2026-10-09`  
 **Branch head at last confirmed write:** `1a013fe51bcc68281773c2360dce80fd4aa842b1` (queue tests); queue implementation/header commits `5f99571c39df7309693d3e445e1292dff46edef6` and `cce3ac33b1b5ff72d980ab1add95385e7a67e21c`.
 
@@ -16,13 +16,15 @@
 | Valgrind Memcheck | Previous mission context reports successful gate on preceding fix | **PASS (prior revision)** | Not mission branch |
 | One-million-task soak | Previous mission context reports successful gate on preceding fix | **PASS (prior revision)** | Not mission branch |
 
-## Mission-branch changes
+## Combined mission-branch changes
 
 | Change | Check | Result |
 |---|---|---|
-| Atomic worker-count reads; retain local deques across shrink/re-growth; destroy at pool destruction | Targeted regression added in `tests/test_resize_stress.c` | **Implemented; execution pending CI** |
-| Worker callbacks query count/stats while shrink joins workers | Regression test committed | **Implemented; execution pending CI** |
-| New engineering records | Diff review and branch CI | **Pending** |
+| Worker resize deadlock/stats/deque lifetime | `tests/test_resize_stress.c` | Implemented; combined CI pending |
+| Queue cancellation bookkeeping | 24 concurrent timed-out producer regression and later push/pop | Implemented; combined CI pending |
+| Map timeout item reports | One-worker timeout test expects `TIMEOUT` and `CANCELLED` | Implemented; combined CI pending |
+| IPC response framing/version/path/error/deadline | Multiline, invalid argument, path safety, unknown version, failure fallback, slow-trickle tests | Implemented; combined CI pending |
+| README + engineering records | Diff review | Updated; combined CI pending |
 
 ## Commands and tools actually executed
 
@@ -35,11 +37,11 @@
 ## Required final gates
 
 Do not mark these as passed until the mission branch PR run reports success:
-- [ ] Build, tests, and CLI
-- [ ] ASan/UBSan
-- [ ] ThreadSanitizer
-- [ ] Valgrind
-- [ ] One-million-task soak
+- [ ] Build, tests, and CLI (latest combined head)
+- [ ] ASan/UBSan (latest combined head)
+- [ ] ThreadSanitizer (latest combined head)
+- [ ] Valgrind (latest combined head)
+- [ ] One-million-task soak (latest combined head)
 - [ ] Final diff review
 - [ ] Final main SHA and post-merge CI confirmation
 
@@ -62,3 +64,11 @@ CI success provides evidence for the tests and platforms actually exercised, not
 - `tests/test_map.c` now uses a one-worker pool to deterministically assert that the timed-out item reports `TASKFORGE_ERR_TIMEOUT` while the later queued item reports `TASKFORGE_ERR_CANCELLED`.
 - Implementation commit: `29ecd5a7a11e44d44769df4e66692806ac3ae772`; regression test commit: `81e49aaf9528fc8a5b258117beab09ac09e61b41`.
 - No executable result is claimed until CI for the latest mission-branch head completes.
+
+
+## IPC validation details
+
+- The v1 request contract is intentionally text-only: NUL/CR/LF arguments are rejected before connect. Response bodies are read by advertised byte length and may contain newlines.
+- A single monotonic deadline covers response header/body reads; server request-line reads also have a total deadline.
+- Socket startup rejects any pre-existing path, and cleanup only removes the same socket inode created by the server. Stale paths require explicit owner cleanup.
+- The combined branch's newest CI run must be observed before marking these regressions passed.
