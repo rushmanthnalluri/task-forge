@@ -1,6 +1,6 @@
 # Research log
 
-**Updated:** 2026-10-09 22:32:41 IST
+**Updated:** 2026-10-09 22:39 IST
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -28,3 +28,12 @@
 - **Decision:** Remove the ticket admission/cancellation ledger. The queue mutex already serializes insertion and the public contract does not promise FIFO ordering among producers. This avoids a heap allocation for every canceled future ticket and eliminates the failure mode where a failed `realloc` silently loses a ticket. The public header now states that producer wake-up order is scheduler-dependent.
 - **Validation:** Add a bounded-queue regression with many concurrent timed-out producers and verify subsequent pushes/pops still work. CI must pass on the combined mission branch.
 - **Trade-off:** producer fairness is not guaranteed. If strict FIFO fairness becomes a requirement, redesign it with a bounded or allocation-safe waiter structure and test its failure paths before reintroducing ticketing.
+
+
+## R-004 — Accurate per-item map timeout reporting
+
+- **Question:** After a shared map deadline expires, how should later items appear in the per-item report?
+- **Repository-specific evidence:** `map_impl` initialized all report entries to generic failure, but canceled and released later futures without updating their report fields. It also left the currently timed-out future queued if cancellation was still possible.
+- **Decision:** Attempt to cancel the timed-out current future if pending. For later futures, record `TASKFORGE_ERR_CANCELLED` when cancellation succeeds; otherwise use a zero-time wait to record whether the future completed, failed, was canceled, or remains timed out. Preserve the underlying task error and completed result where available.
+- **Regression:** Use a one-worker pool with a slow first task and queued second task; assert first item is timed out and second is canceled.
+- **Trade-off:** Running callbacks cannot be interrupted safely by this API; they may finish after the map call returns.
