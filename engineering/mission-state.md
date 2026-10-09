@@ -1,38 +1,58 @@
 # Mission state
 
-- **Mission:** TaskForge autonomous engineering hardening
-- **Hard deadline:** 2026-10-10 12:50 PM IST (UTC+05:30)
-- **Last confirmed execution time:** 2026-10-09 22:47 IST
-- **Time remaining at last check:** approximately 14 hours 17 minutes
-- **Repository:** https://github.com/rushmanthnalluri/task-forge
-- **Baseline main SHA:** `3c4b115da5e5bb14516d707858581aa7e62a240c`
-- **Working branch:** `mission/engineering-hardening-2026-10-09`
-- **Latest functional/test commit:** `ed1071f1a724a8b5365b1378442418609f4fcd72` (map submission-failure regression); the branch also includes resize, queue, map-timeout, IPC, README, and engineering-record changes.
-- **IPC regression commit:** `94078e22d0096d35020fcbc094334f0693b3b1d5`; IPC implementation commit `e953b1d4cfc08686648db60c01e0db0bdccc081d`; README/header updates `cd256e0cd285304227b9718af0cd874469695cc4` and `ee7f434d4be052f7853d172075d13d3ad78ea9a2`.
-- **Latest map fix:** regression test `3298de8549f30bd2aa4ad77c6a65800fa6c59dca`; implementation `5463a260a3331d05837c7448eb0a5f60e883a9ce`. Queue source/header commits `d9f25c0912a074aa8b289309e933a9d2e4a8cece` and `91f7f77e2f63ae281175e0659b30a06d321a582a`; queue regression `1a013fe51bcc68281773c2360dce80fd4aa842b1`. Resize fix `ce43a233a47d3ae9acf71b531b5257129764cb09`.
-- **PR:** [#5](https://github.com/rushmanthnalluri/task-forge/pull/5) is open and contains the resize, queue, map, IPC, README, and engineering-record changes. CI run [37965040704](https://github.com/rushmanthnalluri/task-forge/actions/runs/37965040704) is pending for functional/test commit `ed1071f1a724a8b5365b1378442418609f4fcd72`. Many intermediate workflow runs are queued from individual commits; check the latest head's run before merge. Do not infer success from earlier intermediate revisions.
-- **Local execution:** Unavailable in this environment. Changes are made via GitHub connector; remote CI is required for executable verification.
-- **Main baseline CI:** Run [37963052958](https://github.com/rushmanthnalluri/task-forge/actions/runs/37963052958), success on baseline main. Do not treat as validation of branch changes.
+**Last confirmed execution:** 2026-10-09 22:49 IST  
+**Hard deadline:** 2026-10-10 12:50 IST (Asia/Kolkata)  
+**Time remaining at this update:** approximately 14 hours  
+**Mission mode:** autonomous, bounded by available tools and the deadline.
 
-## Progress
-1. Confirmed repository access and push permissions.
-2. Enumerated the complete recursive tracked-file tree (44 files; tree response not truncated).
-3. Inspected pool, queue, futures, map, parser, IPC, logger, work-stealing code, public headers, key tests, Makefile, CI workflow, README, and design docs.
-4. Added a regression fix for resize deadlock and stats/deque lifetime hazards.
-5. Added a deterministic resize callback regression test.
-6. Added the audit, backlog, research, mission-state, and verification records to the mission branch.
+## Repository and branches
 
-## Current risks
-- IPC framing/path/deadline fixes are consolidated into PR #5; PR #6 is a duplicate staging PR and should be closed as superseded after the combined CI gate is green.
-- Queue producer-ticket cancellation liveness issue is fixed by removing allocation-dependent ticket bookkeeping; producer FIFO fairness is explicitly not guaranteed.
-- Map timeout-report status issue is fixed with explicit cancellation/terminal-state reporting; regression test added. Latest CI pending.
-- Mission-branch CI has not yet been observed.
-- No local compiler/test runner, secret scanner, or static analyzer was executed in this environment.
-- Full semantic review of all CLI commands, benchmarks, scripts, and historical commits remains incomplete.
+- Repository: https://github.com/rushmanthnalluri/task-forge
+- Baseline `main` SHA: `3c4b115da5e5bb14516d707858581aa7e62a240c`
+- Mission branch / PR #5: `mission/engineering-hardening-2026-10-09`
+- PR #5 combined code/test head with all five gates green: `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a`
+- Latest known documentation commit before this state refresh: `6d013a` (verification report update). This mission-state refresh becomes the new branch tip.
+- PR #5 includes resize/lifecycle synchronization, queue producer liveness, map reporting, IPC hardening, regression tests, and engineering records.
+- PR #6 and older PR #3 contain overlapping IPC work and should be closed as superseded after PR #5 merges successfully; do not close or merge until the combined PR's latest checks are green.
+- No local checkout is available in this execution environment. Repository changes were made through the GitHub connector; CI evidence is from GitHub Actions.
+
+## Latest verification
+
+- Green combined code/test head: `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a`
+- Run: https://github.com/rushmanthnalluri/task-forge/actions/runs/37965261107
+- Build/full tests/CLI: PASS
+- ASan/UBSan: PASS
+- TSan: PASS
+- Valgrind Memcheck: PASS
+- One-million-task soak: PASS
+- Documentation and CI-record edits were committed after that green code/test head. A fresh run on the latest PR head is required before merge.
+- CI concurrency was changed to cancel superseded runs on the same workflow/ref; this preserves the latest run's required checks and prevents stale-run backlog.
+
+## Findings and progress
+
+- **P1:** Worker resize/statistics lifetime and shutdown synchronization hardened; regression stress test added.
+- **P1/P2:** Queue producer cancellation bookkeeping simplified to remove allocation-dependent cancellation failure; strict FIFO producer fairness is not promised.
+- **P2:** IPC framing, version/header validation, socket-path cleanup, text argument validation, and one shared monotonic response deadline hardened.
+- **P2:** Map timeout reports now distinguish completed, canceled, and unfinished items. Partial-submission failure reporting now preserves earlier futures' actual results/statuses.
+- **Open P2:** Inline worker-thread map path still ignores timeout semantics; queue `queue_pop` returns false after an internal polling interval despite a blocking-style comment; submit/shutdown lifecycle coverage remains incomplete.
+- **Open P2:** No repository license is declared; owner choice is required before adding one.
+- **Open P3:** Benchmark CSV error reporting; static analysis; security-alert scanning; cross-platform compatibility verification.
+
+## Blockers and limitations
+
+- Local shell/build tools are not available against a checkout; do not claim local commands ran.
+- The connected GitHub API did not expose repository secret/dependency/code-scanning alert endpoints, so those scans are unverified.
+- No package manifest or lockfile is present; dependency risk assessment is limited to the tracked C/Python source.
+- No claim of exhaustive proof, zero bugs, or universal POSIX compatibility is made.
 
 ## Next actions
-1. Re-fetch the combined mission branch diff and review for accidental API/behavior changes.
-2. Wait for current-head CI to finish; inspect every job and any failure log.
-3. The mission branch is being updated concurrently. Before each write, refresh the branch head and use the expected file SHA. Once PR #5 is green, close duplicate IPC staging PRs #3 and #6, then decide whether to merge PR #5 under the repository's normal review policy.
-4. If time remains, prioritize future cancellation ownership and parser edge cases, with regression tests and CI.
-5. Before deadline, stop new implementation, rerun final CI verification, update this state and the verification report with actual timestamps/results, and report any remaining risks honestly.
+
+1. Wait for all five CI gates on the latest documentation-updated PR #5 head.
+2. If any gate fails, inspect the actual logs, fix the root cause, add regression coverage, and wait for the latest run.
+3. Review the final diff and update PR title/body to reflect the combined scope.
+4. Merge PR #5 through normal PR flow only after the latest head is fully green.
+5. Close superseded PR #6 and PR #3, verify the new `main` SHA and post-merge CI.
+6. Continue with the next highest-value open issue, prioritizing inline map timeout semantics and queue-pop contract.
+7. Near the deadline, stop new implementation work, update the five engineering records with final SHAs/checks/risks, and report honestly.
+
+An hourly continuation check is scheduled through the stated deadline. It must not push new commits while the current combined PR has CI queued or in progress.
