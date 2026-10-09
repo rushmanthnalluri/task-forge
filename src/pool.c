@@ -70,6 +70,18 @@ static bool worker_should_retire(const worker_thread_t* worker) {
     return atomic_load(&worker->retiring);
 }
 
+/* Keep idle workers alive while any worker-local deque still has accepted work. */
+static bool pool_has_queued_work(taskforge_pool_t* pool) {
+    if (!queue_is_empty(pool->queue)) return true;
+    if (!pool->config.enable_work_stealing) return false;
+    size_t workers = atomic_load(&pool->operational_workers);
+    if (workers > pool->worker_capacity) workers = pool->worker_capacity;
+    for (size_t i = 0; i < workers; i++) {
+        if (ws_deque_size(&pool->workers[i].deque) != 0) return true;
+    }
+    return false;
+}
+
 void taskforge_default_config(taskforge_pool_config_t* config) {
     if (!config) return;
     long nprocs = sysconf(_SC_NPROCESSORS_ONLN);
@@ -190,7 +202,7 @@ static void* worker_loop(void* arg) {
             if (!found_task) {
                 if (!queue_pop(pool->queue, &task)) {
                     if (atomic_load(&pool->immediate_shutdown) ||
-                        (atomic_load(&pool->shutdown_started) && queue_is_empty(pool->queue)) ||
+                        (atomic_load(&pool->shutdown_started) && !pool_has_queued_work(pool)) ||
                         worker_should_retire(self)) break;
                     continue;
                 }
