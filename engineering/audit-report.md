@@ -1,7 +1,7 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 22:32:41 IST  
+**Last confirmed execution time:** 2026-10-09 22:37 IST  
 **Baseline branch:** `main`  
 **Baseline commit:** `3c4b115da5e5bb14516d707858581aa7e62a240c`  
 **Coverage status:** In progress; see subsystem ledger below.
@@ -48,8 +48,10 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Severity/confidence:** P2 / medium-high
 - **Evidence:** Cancellation bookkeeping grows a heap array. If `realloc` fails, `cancel_ticket` returns false, but `abandon_ticket` ignores the result. The missing ticket can prevent `producer_turn` from advancing, leaving later producers blocked even after capacity becomes available.
 - **Impact:** Under memory pressure, bounded-queue producers may stall indefinitely.
-- **Proposed remediation:** Remove allocation-dependent ticket cancellation or redesign producer ordering so cancellation bookkeeping cannot silently lose a ticket. Add allocator-failure injection and producer progress regression tests.
-- **Status:** Open; not yet changed.
+- **Remediation:** Removed the heap-backed producer-ticket cancellation ledger. Producers now wait on queue capacity and shutdown predicates directly, so cancellation cannot lose a ticket due to `realloc` failure.
+- **Regression test:** Added 24 concurrent timed-out producers and verified the queue still accepts and drains later work.
+- **Trade-off:** producer wake-up order is scheduler-dependent; strict FIFO fairness is not promised. This is now stated in `include/taskforge/queue.h`.
+- **Status:** Implemented on `mission/engineering-hardening-2026-10-09`; combined CI pending.
 
 ### TF-MAP-001 — Timed map per-item reports do not describe all canceled items
 - **Component:** `src/map.c`, `taskforge_map_timeout_report`
@@ -65,11 +67,11 @@ No dependency manifest or third-party package lockfile is present in the tracked
 |---|---|---|
 | Repository tree / tracked paths | Complete recursive tree; 44 files | Inspect every remaining file and git history before claiming full semantic coverage |
 | Pool lifecycle / resize / stats | Targeted source review | Verify mission branch via CI; expand concurrent shutdown/resize/stats tests |
-| Queue / producer backpressure | Source + bounded-queue test | Ticket cancellation allocation-failure path |
+| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery added | Verify latest branch CI; strict FIFO producer fairness intentionally not guaranteed |
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
 | Map API | Source + tests | Per-item report status on timeout |
 | Parser / workload execution | Source + parser tests | More fuzz/property tests and resource-limit behavior |
-| IPC | Source + header + tests | Framing/version/timeout hardening |
+| IPC | Source + header + tests | IPC hardening is being verified separately in PR #6 |
 | CLI | Entry point and command handling reviewed partially | Finish remaining command/signal/error-path review |
 | Logging | Source reviewed | I/O error propagation and performance implications |
 | Work stealing | Source reviewed | Model-based resize/shutdown interleavings |
