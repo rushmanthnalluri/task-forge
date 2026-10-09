@@ -238,22 +238,40 @@ static size_t select_pop_ring(taskforge_queue_t* q) {
     return TASKFORGE_PRIO_LOW;
 }
 
-bool queue_pop(taskforge_queue_t* q, taskforge_task_t* out_task) {
+static bool queue_pop_impl(taskforge_queue_t* q,
+                           taskforge_task_t* out_task,
+                           bool timed,
+                           uint32_t timeout_ms) {
     if (!q || !out_task) return false;
 
-    pthread_mutex_lock(&q->mutex);
+    struct timespec deadline = {0};
+    if (timed) {
+        if (clock_gettime(CLOCK_MONOTONIC, &deadline) != 0) return false;
+        deadline.tv_sec += timeout_ms / 1000U;
+        deadline.tv_nsec += (long)(timeout_ms % 1000U) * 1000000L;
+        if (deadline.tv_nsec >= 1000000000L) {
+            deadline.tv_sec++;
+            deadline.tv_nsec -= 1000000000L;
+        }
+    }
 
-    while (q->total_count == 0 && !q->shutdown && !(q->draining && q->total_count == 0)) {
-        struct timespec deadline;
-        clock_gettime(CLOCK_MONOTONIC, &deadline);
-        deadline.tv_nsec += 50000000L;
-        if (deadline.tv_nsec >= 1000000000L) { deadline.tv_sec++; deadline.tv_nsec -= 1000000000L; }
-        if (pthread_cond_timedwait(&q->not_empty, &q->mutex, &deadline) == ETIMEDOUT)
-            break;
+    pthread_mutex_lock(&q->mutex);
+    while (q->total_count == 0 && !q->shutdown && !q->draining) {
+        int rc = timed
+            ? pthread_cond_timedwait(&q->not_empty, &q->mutex, &deadline)
+            : pthread_cond_wait(&q->not_empty, &q->mutex);
+        if (rc == ETIMEDOUT && q->total_count == 0 && !q->shutdown && !q->draining) {
+            pthread_mutex_unlock(&q->mutex);
+            return false;
+        }
+        if (rc != 0 && rc != ETIMEDOUT) {
+            pthread_mutex_unlock(&q->mutex);
+            return false;
+        }
     }
 
     if (q->total_count == 0) {
-        /* Queue is shutting down and completely drained */
+        /* Queue is stopped and completely drained. */
         pthread_mutex_unlock(&q->mutex);
         return false;
     }
@@ -265,6 +283,14 @@ bool queue_pop(taskforge_queue_t* q, taskforge_task_t* out_task) {
     pthread_cond_signal(&q->not_full);
     pthread_mutex_unlock(&q->mutex);
     return true;
+}
+
+bool queue_pop(taskforge_queue_t* q, taskforge_task_t* out_task) {
+    return queue_pop_impl(q, out_task, false, 0);
+}
+
+bool queue_pop_timeout(taskforge_queue_t* q, taskforge_task_t* out_task, uint32_t timeout_ms) {
+    return queue_pop_impl(q, out_task, true, timeout_ms);
 }
 
 bool queue_try_pop(taskforge_queue_t* q, taskforge_task_t* out_task) {
