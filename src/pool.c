@@ -23,6 +23,7 @@ typedef struct {
     unsigned int rng_seed;
     atomic_bool retiring;
     bool initialized;
+    bool deque_initialized;
 } worker_thread_t;
 
 struct taskforge_pool {
@@ -363,6 +364,7 @@ taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config) {
                 free(pool);
                 return NULL;
             }
+            pool->workers[i].deque_initialized = true;
             initialized_deques++;
         }
     } else {
@@ -620,12 +622,14 @@ int taskforge_pool_resize(taskforge_pool_t* pool, size_t worker_count) {
             worker->pool = pool;
             atomic_init(&worker->retiring, false);
             worker->rng_seed = (unsigned int)(time(NULL) ^ (uintptr_t)worker ^ ((i + 1) * 7919));
-            if (pool->config.enable_work_stealing) {
-                size_t capacity = pool->config.queue_capacity / worker_count + 64;
+            if (pool->config.enable_work_stealing && !worker->deque_initialized) {
+                size_t capacity = pool->config.queue_capacity / worker_count;
+                if (capacity > SIZE_MAX - 64) break;
+                capacity += 64;
                 if (!ws_deque_init(&worker->deque, capacity)) break;
+                worker->deque_initialized = true;
             }
             if (pthread_create(&worker->thread, NULL, worker_loop, worker) != 0) {
-                if (pool->config.enable_work_stealing) ws_deque_destroy(&worker->deque);
                 break;
             }
             worker->initialized = true;
@@ -643,7 +647,6 @@ int taskforge_pool_resize(taskforge_pool_t* pool, size_t worker_count) {
         pool->config.num_workers = worker_count;
         for (size_t i = worker_count; i < old; i++) {
             pthread_join(pool->workers[i].thread, NULL);
-            if (pool->config.enable_work_stealing) ws_deque_destroy(&pool->workers[i].deque);
             worker_thread_t* worker = &pool->workers[i];
             worker->initialized = false;
         }
@@ -654,10 +657,7 @@ int taskforge_pool_resize(taskforge_pool_t* pool, size_t worker_count) {
 
 size_t taskforge_pool_worker_count(taskforge_pool_t* pool) {
     if (!pool) return 0;
-    pthread_mutex_lock(&pool->resize_mutex);
-    size_t count = atomic_load(&pool->operational_workers);
-    pthread_mutex_unlock(&pool->resize_mutex);
-    return count;
+    return atomic_load(&pool->operational_workers);
 }
 
 int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
@@ -703,8 +703,9 @@ void taskforge_pool_destroy(taskforge_pool_t* pool) {
 
     if (pool->config.enable_work_stealing) {
         for (size_t i = 0; i < pool->worker_capacity; i++) {
-            if (!pool->workers[i].initialized) continue;
+            if (!pool->workers[i].deque_initialized) continue;
             ws_deque_destroy(&pool->workers[i].deque);
+            pool->workers[i].deque_initialized = false;
         }
     }
 
@@ -726,11 +727,12 @@ taskforge_pool_stats_t taskforge_pool_get_stats(taskforge_pool_t* pool) {
     memset(&stats, 0, sizeof(stats));
     if (!pool) return stats;
 
-    stats.num_workers = pool->config.num_workers;
+    size_t worker_count = atomic_load(&pool->operational_workers);
+    stats.num_workers = worker_count;
     stats.active_workers = atomic_load(&pool->active_workers);
     size_t queued = queue_size(pool->queue);
     if (pool->config.enable_work_stealing && pool->workers) {
-        for (size_t i = 0; i < pool->config.num_workers; i++) {
+        for (size_t i = 0; i < worker_count; i++) {
             queued += ws_deque_size(&pool->workers[i].deque);
         }
     }
