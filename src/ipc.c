@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -103,6 +104,14 @@ static int read_exact_until(int fd, void* buffer, size_t length,
         offset += (size_t)got;
     }
     return 0;
+}
+
+static int unlink_socket_if_same(const char* path, const struct stat* expected) {
+    struct stat current;
+    if (lstat(path, &current) != 0) return errno == ENOENT ? 0 : -1;
+    if (!S_ISSOCK(current.st_mode) || current.st_dev != expected->st_dev ||
+        current.st_ino != expected->st_ino) return -1;
+    return unlink(path);
 }
 
 int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* handlers,
