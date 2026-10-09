@@ -26,6 +26,11 @@ int main(void) {
 
     workload_spec_destroy(spec);
 
+    workload_spec_t* inline_comment = workload_spec_parse_string(
+        "TASK 1 HIGH 0 0 42 # accepted inline comment\n");
+    assert(inline_comment != NULL && inline_comment->count == 1);
+    workload_spec_destroy(inline_comment);
+
     /* Exercise the executor with a payload whose signed LCG multiplication
      * would overflow int64_t if the implementation used signed arithmetic. */
     const char* overflow_safe_text = "TASK 1 HIGH 0 1 9223372036854775807\n";

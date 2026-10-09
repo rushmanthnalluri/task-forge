@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 #include "taskforge/taskforge.h"
 
 static taskforge_pool_t* g_nested_pool = NULL;
@@ -27,6 +28,18 @@ static void* reentrant_map_task(void* arg) {
 static void* multiply_by_five(void* arg) {
     intptr_t v = (intptr_t)arg;
     return (void*)(v * 5);
+}
+
+static int status_task(void* arg, void** result) {
+    intptr_t value = (intptr_t)arg;
+    if (value < 0) return 77;
+    *result = (void*)(value * 2);
+    return 0;
+}
+
+static void* slow_map_task(void* arg) {
+    usleep(50000);
+    return arg;
 }
 
 int main(void) {
@@ -66,6 +79,19 @@ int main(void) {
         assert((intptr_t)in_place[i] == (intptr_t)(i + 1) * 5);
     }
     printf("  [PASS] In-place taskforge_map preserves aliased input items.\n");
+
+    taskforge_future_t* status_future = taskforge_submit_status(pool, status_task, (void*)(intptr_t)-1);
+    assert(status_future != NULL);
+    assert(taskforge_future_wait(status_future, NULL) == TASKFORGE_ERR_FAILED);
+    assert(taskforge_future_get_error(status_future) == 77);
+    taskforge_future_release(status_future);
+    printf("  [PASS] Structured task errors are preserved by futures.\n");
+
+    void* slow_items[2] = {(void*)1, (void*)2};
+    taskforge_map_item_result_t report[2];
+    assert(taskforge_map_timeout_report(pool, slow_map_task, slow_items, 2, report, 1) == TASKFORGE_ERR_TIMEOUT);
+    assert(report[0].status == TASKFORGE_ERR_TIMEOUT || report[1].status == TASKFORGE_ERR_TIMEOUT);
+    printf("  [PASS] Map-wide deadline and per-item reporting are enforced.\n");
 
     /*
      * Regression: a taskforge_map call from a worker must not deadlock when

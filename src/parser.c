@@ -238,6 +238,15 @@ workload_spec_t* workload_spec_parse_string(const char* text) {
             continue;
         }
 
+        /* Strip an inline comment. Workload syntax has no quoted fields, so
+         * the first '#' always starts a comment once the line is non-empty. */
+        char* comment = strchr(line, '#');
+        if (comment && (comment == line || isspace((unsigned char)comment[-1]))) {
+            *comment = '\0';
+            while (comment > line && isspace((unsigned char)comment[-1])) comment--;
+            *comment = '\0';
+        }
+
         char* tok[8] = {0};
         size_t ntok = fields(line, tok, 7);
         if (ntok == 0) {

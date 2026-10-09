@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <ctype.h>
 #include "taskforge/taskforge.h"
 #include "taskforge/parser.h"
 
@@ -59,6 +60,27 @@ static bool parse_int_value(const char* text, int* out) {
     long value = strtol(text, &end, 10);
     if (end == text || *end != '\0' || errno == ERANGE || value < INT_MIN || value > INT_MAX) return false;
     *out = (int)value;
+    return true;
+}
+
+static bool parse_run_path(const char* line, char* out, size_t out_size) {
+    if (!line || !out || out_size == 0) return false;
+    const char* p = line + 3; /* command is "run" */
+    while (isspace((unsigned char)*p)) p++;
+    if (*p == '\0') return false;
+    char quote = (*p == '\'' || *p == '"') ? *p++ : '\0';
+    size_t length = 0;
+    while (*p && (quote ? *p != quote : !isspace((unsigned char)*p))) {
+        if (length + 1 >= out_size) return false;
+        out[length++] = *p++;
+    }
+    if (quote) {
+        if (*p != quote) return false;
+        p++;
+    }
+    while (isspace((unsigned char)*p)) p++;
+    if (*p != '\0' || length == 0) return false;
+    out[length] = '\0';
     return true;
 }
 
@@ -253,8 +275,7 @@ int main(int argc, char** argv) {
             free(results);
         } else if (strcmp(cmd, "run") == 0) {
             char filepath[128] = {0};
-            char extra[2] = {0};
-            if (sscanf(line, "run %127s %1s", filepath, extra) == 1) {
+            if (parse_run_path(line, filepath, sizeof(filepath))) {
                 printf("[Parser] Loading spec from '%s'...\n", filepath);
                 workload_spec_t* spec = workload_spec_parse_file(filepath);
                 if (!spec) {

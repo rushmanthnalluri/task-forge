@@ -1,17 +1,28 @@
 #include "taskforge/taskforge.h"
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
 #include "internal.h"
 
-taskforge_status_t taskforge_map(taskforge_pool_t* pool,
-                                 taskforge_task_fn map_fn,
-                                 void** items,
-                                 size_t count,
-                                 void** results) {
+static taskforge_status_t map_impl(taskforge_pool_t* pool,
+                                   taskforge_task_fn map_fn,
+                                   void** items,
+                                   size_t count,
+                                   void** results,
+                                   bool timed,
+                                   uint32_t timeout_ms,
+                                   taskforge_map_item_result_t* report) {
     if (!pool || !map_fn || (count > 0 && !items)) {
         return TASKFORGE_ERR_INVALID;
     }
     if (count == 0) return TASKFORGE_OK;
+    if (report) {
+        for (size_t i = 0; i < count; i++) {
+            report[i].status = TASKFORGE_ERR_FAILED;
+            report[i].task_error = TASKFORGE_ERR_FAILED;
+            report[i].result = NULL;
+        }
+    }
     if (count > SIZE_MAX / sizeof(taskforge_future_t*)) {
         return TASKFORGE_ERR_NOMEM;
     }
@@ -43,6 +54,11 @@ taskforge_status_t taskforge_map(taskforge_pool_t* pool,
         for (size_t i = 0; i < count; i++) {
             void* result = map_fn(map_items[i]);
             if (results) results[i] = result;
+            if (report) {
+                report[i].status = TASKFORGE_OK;
+                report[i].task_error = 0;
+                report[i].result = result;
+            }
         }
         free(input_copy);
         return status;
@@ -65,6 +81,10 @@ taskforge_status_t taskforge_map(taskforge_pool_t* pool,
         if (!futures[i]) {
             /* If submission fails (e.g. pool shutting down or out of memory) */
             overall_status = TASKFORGE_ERR_FAILED;
+            if (report) {
+                report[i].status = TASKFORGE_ERR_FAILED;
+                report[i].task_error = TASKFORGE_ERR_FAILED;
+            }
             for (size_t j = 0; j < i; j++) {
                 taskforge_status_t wait_status =
                     taskforge_future_wait(futures[j], results ? &results[j] : NULL);
@@ -84,13 +104,48 @@ taskforge_status_t taskforge_map(taskforge_pool_t* pool,
         }
     }
 
-    /* Wait for each item in order */
+    struct timespec deadline = {0};
+    if (timed) {
+        clock_gettime(CLOCK_MONOTONIC, &deadline);
+        deadline.tv_sec += timeout_ms / 1000U;
+        deadline.tv_nsec += (long)(timeout_ms % 1000U) * 1000000L;
+        if (deadline.tv_nsec >= 1000000000L) {
+            deadline.tv_sec++;
+            deadline.tv_nsec -= 1000000000L;
+        }
+    }
+    /* Wait for each item in order against one shared deadline. */
     for (size_t i = 0; i < count; i++) {
         void* res = NULL;
-        taskforge_status_t s = taskforge_future_wait(futures[i], &res);
+        uint32_t remaining = timeout_ms;
+        if (timed) {
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            int64_t ns = (int64_t)(deadline.tv_sec - now.tv_sec) * 1000000000LL +
+                         (int64_t)deadline.tv_nsec - now.tv_nsec;
+            remaining = ns <= 0 ? 0 : (uint32_t)((ns + 999999LL) / 1000000LL);
+        }
+        taskforge_status_t s = timed
+            ? taskforge_future_wait_timeout(futures[i], remaining, &res)
+            : taskforge_future_wait(futures[i], &res);
         if (results) results[i] = res;
+        if (report) {
+            report[i].status = s;
+            report[i].task_error = taskforge_future_get_error(futures[i]);
+            report[i].result = res;
+        }
         if (s != TASKFORGE_OK && overall_status == TASKFORGE_OK) {
             overall_status = s;
+            if (s == TASKFORGE_ERR_TIMEOUT) {
+                for (size_t j = i + 1; j < count; j++) {
+                    (void)taskforge_future_cancel(futures[j]);
+                    taskforge_future_release(futures[j]);
+                }
+                taskforge_future_release(futures[i]);
+                free(futures);
+                free(input_copy);
+                return overall_status;
+            }
         }
         taskforge_future_release(futures[i]);
     }
@@ -98,4 +153,31 @@ taskforge_status_t taskforge_map(taskforge_pool_t* pool,
     free(futures);
     free(input_copy);
     return overall_status;
+}
+
+taskforge_status_t taskforge_map(taskforge_pool_t* pool,
+                                 taskforge_task_fn map_fn,
+                                 void** items,
+                                 size_t count,
+                                 void** results) {
+    return map_impl(pool, map_fn, items, count, results, false, 0, NULL);
+}
+
+taskforge_status_t taskforge_map_timeout(taskforge_pool_t* pool,
+                                         taskforge_task_fn map_fn,
+                                         void** items,
+                                         size_t count,
+                                         void** results,
+                                         uint32_t timeout_ms) {
+    return map_impl(pool, map_fn, items, count, results, true, timeout_ms, NULL);
+}
+
+taskforge_status_t taskforge_map_timeout_report(taskforge_pool_t* pool,
+                                                taskforge_task_fn map_fn,
+                                                void** items,
+                                                size_t count,
+                                                taskforge_map_item_result_t* report,
+                                                uint32_t timeout_ms) {
+    if (count > 0 && !report) return TASKFORGE_ERR_INVALID;
+    return map_impl(pool, map_fn, items, count, NULL, true, timeout_ms, report);
 }

@@ -11,6 +11,7 @@
 typedef struct {
     uint64_t task_id;
     taskforge_task_fn fn;
+    taskforge_task_status_fn status_fn;
     void* arg;
     taskforge_future_t* future;
     taskforge_task_priority_t prio;
@@ -41,6 +42,11 @@ typedef struct taskforge_queue {
 
     /* Starvation avoidance counter */
     size_t high_prio_streak;
+    uint64_t producer_next_ticket;
+    uint64_t producer_turn;
+    uint64_t* canceled_tickets;
+    size_t canceled_count;
+    size_t canceled_capacity;
 
     bool draining;    /* Set during graceful shutdown: reject new tasks, drain existing */
     bool shutdown;    /* Immediate termination flag */
