@@ -1,28 +1,28 @@
 # Verification report
 
-**Updated:** 2026-10-09 22:53 IST  
+**Updated:** 2026-10-09 22:56 IST  
 **Mission deadline:** 2026-10-10 12:50 IST  
-**Repository main:** `a8be96862ad004247e2a0c36e44250e03ce7960e`  
-**Post-merge evidence:** [GitHub Actions run 37965750569](https://github.com/rushmanthnalluri/task-forge/actions/runs/37965750569) — all five gates passed on `main`.
+**Main:** `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`  
+**Post-merge evidence:** [GitHub Actions run 37966256429](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966256429) — all five gates passed on main.
 
-## Latest main verification after the consolidated audit merge
+## Latest main verification
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build, full tests, and CLI smoke test | **PASS** | Run 37965750569 |
-| AddressSanitizer and UBSan | **PASS** | Run 37965750569 |
-| ThreadSanitizer | **PASS** | Run 37965750569 |
-| Valgrind Memcheck | **PASS** | Run 37965750569 |
-| One-million-task soak | **PASS** | Run 37965750569 |
+| Build, full tests, and CLI smoke test | **PASS** | Run 37966256429 |
+| AddressSanitizer and UBSan | **PASS** | Run 37966256429 |
+| ThreadSanitizer | **PASS** | Run 37966256429 |
+| Valgrind Memcheck | **PASS** | Run 37966256429 |
+| One-million-task soak | **PASS** | Run 37966256429 |
 
-Merged commit: `a8be96862ad004247e2a0c36e44250e03ce7960e`. The original PR-head run 37965605654 also passed all five gates before squash merge.
+The inline-map-timeout follow-up passed all five gates on PR head `e8fa17d39403a832fabf4e6c85d9ae0c9d7a3adb` in run [37966033793](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966033793) and was merged as `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`.
 
 ## Current follow-up branch
 
-- Branch: `fix/inline-map-timeout`
-- Work: enforce timeout checks between worker-inline map callbacks, preserve results of callbacks that finish, stop starting later callbacks after deadline, and mark unstarted items canceled.
-- Regression: `tests/test_map.c` calls `taskforge_map_timeout_report` from a worker with a 50 ms deadline and a 150 ms first callback; it expects overall `TIMEOUT`, first item `OK`, and second item `CANCELLED`.
-- Status: code, test, API documentation, audit/backlog/research updates committed on the branch. **No CI result yet**; open a PR and wait for the latest head's five gates before merge.
+- Branch: `fix/queue-pop-contract`
+- Change: separate blocking `queue_pop` from timed `queue_pop_timeout`; work-stealing workers use the timed variant to poll local deques.
+- Regression coverage: timed idle return, blocking pop waiting beyond 50 ms until a task arrives, and shutdown waking a blocked empty-queue pop.
+- Status: code, tests, API docs, and engineering records are committed on the branch. **CI not yet verified**; open a PR and wait for all five gates on the latest head before merge.
 
 ## Tools and checks actually executed
 
@@ -34,10 +34,11 @@ Merged commit: `a8be96862ad004247e2a0c36e44250e03ce7960e`. The original PR-head 
 
 ## Remaining checks and risks
 
-- [x] Consolidated PR #5 merged to `main`; duplicate PRs #3 and #6 closed as superseded.
-- [x] Post-merge CI passed all five gates on `a8be96862ad004247e2a0c36e44250e03ce7960e`.
-- [ ] Open PR for `fix/inline-map-timeout`, verify all five gates, and merge only if the latest head is green.
-- [ ] Continue with queue-pop contract and remaining lifecycle coverage.
+- [x] Consolidated audit PR #5 merged and all five gates passed.
+- [x] Inline map timeout PR #7 merged and all five gates passed.
+- [x] Post-merge main CI passed on `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`.
+- [ ] Open PR for `fix/queue-pop-contract`, verify all five gates, and merge only if the latest head is green.
+- [ ] Continue with lifecycle race coverage and remaining findings.
 - [ ] License choice requires owner authorization; do not infer a license.
 - [ ] Static analysis, security alert scans, and non-Ubuntu compatibility checks remain unverified.
 
