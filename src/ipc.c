@@ -101,10 +101,10 @@ int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* ha
         char name[TASKFORGE_IPC_MAX_NAME] = {0};
         unsigned version = 0;
         int consumed = 0;
-        if (rc == 0 && sscanf(line, "%u %63s %n", &version, name, &consumed) == 2 &&
-            version == TASKFORGE_IPC_VERSION && consumed > 0) {
-            const char* arg = line + consumed;
-            while (*arg == ' ') arg++;
+        if (rc == 0 && sscanf(line, "%u %63s%n", &version, name, &consumed) == 2 &&
+            version == TASKFORGE_IPC_VERSION && consumed > 0 &&
+            line[consumed] == ' ') {
+            const char* arg = line + consumed + 1;
             size_t arglen = strlen(arg);
             if (arglen <= TASKFORGE_IPC_MAX_PAYLOAD) {
                 for (size_t i = 0; i < count; i++) {
