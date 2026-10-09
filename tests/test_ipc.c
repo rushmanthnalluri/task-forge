@@ -148,6 +148,11 @@ int main(void) {
     wait_server(path, server);
 
     server = start_server(path, handlers, 4, 1);
+    assert(taskforge_ipc_client_call(path, "echo", "  hello", 7, result, sizeof(result), &error, 1000) == 0);
+    assert(strcmp(result, "  hello") == 0 && error == 0);
+    wait_server(path, server);
+
+    server = start_server(path, handlers, 4, 1);
     assert(taskforge_ipc_client_call(path, "multiline", "", 0, result, sizeof(result), &error, 1000) == 0);
     assert(strcmp(result, "first line\nsecond line") == 0 && error == 0);
     wait_server(path, server);
