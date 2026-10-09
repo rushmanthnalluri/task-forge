@@ -89,9 +89,16 @@ int main(void) {
 
     void* slow_items[2] = {(void*)1, (void*)2};
     taskforge_map_item_result_t report[2];
-    assert(taskforge_map_timeout_report(pool, slow_map_task, slow_items, 2, report, 1) == TASKFORGE_ERR_TIMEOUT);
-    assert(report[0].status == TASKFORGE_ERR_TIMEOUT || report[1].status == TASKFORGE_ERR_TIMEOUT);
-    printf("  [PASS] Map-wide deadline and per-item reporting are enforced.\n");
+    taskforge_pool_config_t timeout_cfg = cfg;
+    timeout_cfg.num_workers = 1;
+    timeout_cfg.queue_capacity = 8;
+    taskforge_pool_t* timeout_pool = taskforge_pool_create(&timeout_cfg);
+    assert(timeout_pool != NULL);
+    assert(taskforge_map_timeout_report(timeout_pool, slow_map_task, slow_items, 2, report, 1) == TASKFORGE_ERR_TIMEOUT);
+    assert(report[0].status == TASKFORGE_ERR_TIMEOUT);
+    assert(report[1].status == TASKFORGE_ERR_CANCELLED);
+    taskforge_pool_destroy(timeout_pool);
+    printf("  [PASS] Map timeout reports the timed-out item and canceled queued items.\n");
 
     /*
      * Regression: a taskforge_map call from a worker must not deadlock when
