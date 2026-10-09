@@ -1,7 +1,7 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 22:52 IST  
+**Last confirmed execution time:** 2026-10-09 22:56 IST  
 **Baseline branch:** `main`  
 **Baseline commit:** `3c4b115da5e5bb14516d707858581aa7e62a240c`  
 **Coverage status:** In progress; see subsystem ledger below.
@@ -115,15 +115,15 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Regression test:** A worker invokes `taskforge_map_timeout_report` with a 50 ms deadline and a 150 ms first callback; the overall result must be `TIMEOUT`, the completed first item remains `OK`, and the second item is `CANCELLED`.
 - **Status:** Implemented on `fix/inline-map-timeout`; targeted regression added; combined CI pending.
 
-### TF-QUEUE-002 — `queue_pop` returns false after an internal polling timeout
+### TF-QUEUE-002 — `queue_pop` returned false after an internal polling timeout
 
-- **Component:** `src/queue.c`, `include/taskforge/queue.h`
+- **Component:** `src/queue.c`, `include/taskforge/queue.h`, `src/pool.c`
 - **Severity/confidence:** P2 / medium-high
-- **Evidence:** The public comment describes a blocking pop, but the implementation uses a 50 ms timed wait and returns false if no task arrives during that interval. The worker loop relies on this to poll work-stealing deques.
-- **Impact:** Direct callers can interpret a temporary idle interval as a stopped/empty queue, contrary to the apparent API contract.
-- **Proposed remediation:** Separate true blocking `queue_pop` from a timed/polling internal variant used by worker threads, or explicitly document the polling semantics and rename the API.
-- **Required regression test:** A thread calling blocking pop on an empty active queue remains blocked past 50 ms, then receives a task after a push; shutdown still releases it.
-- **Status:** Open.
+- **Evidence:** The public comment described a blocking pop, but the implementation used a 50 ms timed wait and returned false on an idle interval.
+- **Impact:** Direct callers could interpret a temporary idle interval as a stopped queue.
+- **Remediation:** Split the API: `queue_pop` now blocks until work or shutdown, while `queue_pop_timeout` is used by work-stealing workers for periodic local-deque polling.
+- **Regression tests:** Empty-queue timed pop returns on timeout without stopping the queue; blocking pop remains blocked beyond 50 ms, wakes on a pushed task, and returns false when an empty queue is shut down.
+- **Status:** Implemented on `fix/queue-pop-contract`; targeted regression added; CI pending.
 
 ### TF-DOC-001 — Repository has no license declaration
 
@@ -151,7 +151,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 |---|---|---|
 | Repository tree / tracked paths | Complete recursive tree; 44 files | Inspect every remaining file and git history before claiming full semantic coverage |
 | Pool lifecycle / resize / stats | Targeted source review | Verify mission branch via CI; expand concurrent shutdown/resize/stats tests |
-| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery added | All five gates passed on code/test head `b6c9eac`; strict FIFO producer fairness intentionally not guaranteed; final docs head needs revalidation |
+| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery and blocking/timed pop regressions added | Producer liveness passed all five gates on `b6c9eac`; queue-pop contract follow-up is pending CI |
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
 | Map API | Source + tests; deterministic timeout and submission-failure report regressions added | All five gates passed on code/test head `b6c9eac`; final docs head needs revalidation; inline timeout semantics remain open |
 | Parser / workload execution | Source + parser tests | More fuzz/property tests and resource-limit behavior |
