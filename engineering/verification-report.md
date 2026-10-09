@@ -54,3 +54,11 @@ CI success provides evidence for the tests and platforms actually exercised, not
 - Added a bounded-queue regression with 24 concurrent timed-out producers and a subsequent successful push/pop.
 - The change intentionally drops strict FIFO fairness among producers; this was not part of the public queue contract and is now documented.
 - No executable result is claimed until the latest mission-branch CI run completes.
+
+
+## Map timeout report remediation (pending latest CI)
+
+- `src/map.c` now attempts to cancel the current timed-out future if it remains pending, and updates each later report entry using the cancellation result or a zero-time wait.
+- `tests/test_map.c` now uses a one-worker pool to deterministically assert that the timed-out item reports `TASKFORGE_ERR_TIMEOUT` while the later queued item reports `TASKFORGE_ERR_CANCELLED`.
+- Implementation commit: `29ecd5a7a11e44d44769df4e66692806ac3ae772`; regression test commit: `81e49aaf9528fc8a5b258117beab09ac09e61b41`.
+- No executable result is claimed until CI for the latest mission-branch head completes.
