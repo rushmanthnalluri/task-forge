@@ -44,6 +44,14 @@ typedef struct taskforge_queue {
     /* Starvation avoidance counter */
     size_t high_prio_streak;
 
+    /* Reserved legacy layout fields. Current queue admission no longer uses
+     * ticket/cancellation bookkeeping; these fields remain zeroed for ABI layout. */
+    uint64_t producer_next_ticket;
+    uint64_t producer_turn;
+    uint64_t* canceled_tickets;
+    size_t canceled_count;
+    size_t canceled_capacity;
+
     bool draining;    /* Set during graceful shutdown: reject new tasks, drain existing */
     bool shutdown;    /* Immediate termination flag */
 } taskforge_queue_t;
