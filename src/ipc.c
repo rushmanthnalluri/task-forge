@@ -3,11 +3,11 @@
 #ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include <poll.h>
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,6 +77,14 @@ static int read_exact(int fd, void* buffer, size_t length, uint32_t timeout_ms) 
     return 0;
 }
 
+static int unlink_socket_if_same(const char* path, const struct stat* expected) {
+    struct stat current;
+    if (lstat(path, &current) != 0) return errno == ENOENT ? 0 : -1;
+    if (!S_ISSOCK(current.st_mode) || current.st_dev != expected->st_dev ||
+        current.st_ino != expected->st_ino) return -1;
+    return unlink(path);
+}
+
 int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* handlers,
                              size_t count, uint32_t max_requests) {
     if (!path || !*path || !handlers || count == 0 ||
@@ -86,12 +94,30 @@ int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* ha
             strlen(handlers[i].name) >= TASKFORGE_IPC_MAX_NAME ||
             strpbrk(handlers[i].name, " \t\r\n") != NULL) return -1;
     }
+    /* Never unlink a caller-supplied path: it may be a regular file or
+     * another live server's socket. Existing paths, including stale sockets,
+     * must be removed explicitly by the owner before starting a new server. */
+    struct stat existing;
+    if (lstat(path, &existing) == 0 || errno != ENOENT) return -1;
+
     int server = socket(AF_UNIX, SOCK_STREAM, 0);
     if (server < 0) return -1;
     struct sockaddr_un addr = {0}; addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
-    unlink(path);
-    if (bind(server, (struct sockaddr*)&addr, sizeof(addr)) != 0 || listen(server, 16) != 0) { close(server); unlink(path); return -1; }
+    if (bind(server, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
+        close(server);
+        return -1;
+    }
+    struct stat bound_path;
+    if (lstat(path, &bound_path) != 0 || !S_ISSOCK(bound_path.st_mode)) {
+        close(server);
+        return -1;
+    }
+    if (listen(server, 16) != 0) {
+        close(server);
+        (void)unlink_socket_if_same(path, &bound_path);
+        return -1;
+    }
     uint32_t served = 0;
     while (!max_requests || served < max_requests) {
         int client = accept(server, NULL, NULL);
@@ -114,6 +140,7 @@ int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* ha
                         int err = 0;
                         int ok = handlers[i].handler(arg, arglen, result, sizeof(result),
                                                      &err, handlers[i].context);
+                        if (ok != 0 && err == 0) err = TASKFORGE_ERR_FAILED;
                         size_t length = strnlen(result, sizeof(result));
                         if (length == sizeof(result)) {
                             (void)write_response(client, 0, TASKFORGE_ERR_FAILED, "", 0);
@@ -129,10 +156,17 @@ int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* ha
 served_request:
         close(client); served++;
     }
-    close(server); unlink(path); return 0;
+    close(server);
+    (void)unlink_socket_if_same(path, &bound_path);
+    return 0;
 }
 
-int taskforge_ipc_server_stop(const char* path) { return path ? unlink(path) : -1; }
+int taskforge_ipc_server_stop(const char* path) {
+    if (!path || !*path) return -1;
+    struct stat current;
+    if (lstat(path, &current) != 0 || !S_ISSOCK(current.st_mode)) return -1;
+    return unlink(path);
+}
 
 int taskforge_ipc_client_call(const char* path, const char* name, const char* arg, size_t len,
                               char* result, size_t cap, int* task_error, uint32_t timeout_ms) {
@@ -170,7 +204,7 @@ int taskforge_ipc_client_call(const char* path, const char* name, const char* ar
         if (task_error) *task_error = err;
     }
     close(fd);
-    return rc ? rc : (ok ? 0 : err);
+    return rc ? rc : (ok ? 0 : (err ? err : TASKFORGE_ERR_FAILED));
 }
 #else
 int taskforge_ipc_server_run(const char* p, const taskforge_ipc_handler_t* h, size_t n, uint32_t m) { (void)p;(void)h;(void)n;(void)m; return TASKFORGE_ERR_INVALID; }
