@@ -1,8 +1,8 @@
 # Verification report
 
-**Updated:** 2026-10-09 22:44 IST  
+**Updated:** 2026-10-09 22:45 IST  
 **Mission branch:** `mission/engineering-hardening-2026-10-09`  
-**Latest code/test commit:** `3298de8549f30bd2aa4ad77c6a65800fa6c59dca` (map timeout regression); **latest prior documentation commit:** `8adbc3746e4018fc589d7ce02b3b08a2a02b7100`. The combined branch includes resize, queue, map, IPC, README, and engineering records.
+**Latest functional test commit:** `3298de8549f30bd2aa4ad77c6a65800fa6c59dca` (map timeout regression); **latest branch tree commit:** `ebe5f2df7f7ee3c0a283be47f63d2ae0896c74c0` (preserves baseline mixed line endings for map files). The combined branch includes resize, queue, map, IPC, README, and engineering records.
 
 ## Baseline checks observed
 
@@ -80,3 +80,9 @@ CI success provides evidence for the tests and platforms actually exercised, not
 - The queue-only implementation revision `5f99571c39df7309693d3e445e1292dff46edef6` passed all five CI jobs in run `37964003934`; the concurrent-producer regression was included in run `37964033504`, with four jobs passing and Valgrind still in progress at last inspection.
 - Earlier IPC-only revision `2aa5972bac1faeac30c96f2e42d2799cce3432eb` passed all five jobs, but predates the slow-trickle deadline regression. Run `37963908247` has build/tests, ASan/UBSan, TSan, and million-task soak passed; Valgrind was still installing at last inspection.
 - These intermediate runs do not validate the latest combined head. The latest combined run must be observed before merge.
+
+
+## Diff review note
+
+- The map source/test edits were reconstructed from the baseline file bytes and committed via Git blobs so unrelated mixed line endings remain unchanged; the map diff is now limited to the timeout logic and regression assertions.
+- Queue files retain some line-ending normalization in the edited queue/header regions, but the semantic diff is limited to removing allocation-dependent producer-ticket cancellation, retaining reserved struct fields for layout compatibility, and adding producer-timeout recovery coverage.
