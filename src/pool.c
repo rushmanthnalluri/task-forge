@@ -662,8 +662,10 @@ int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
     if (!pool) return TASKFORGE_ERR_INVALID;
     if (caller_is_worker(pool)) return TASKFORGE_ERR_INVALID;
 
+    pthread_mutex_lock(&pool->resize_mutex);
     bool expected = false;
     if (!atomic_compare_exchange_strong(&pool->shutdown_started, &expected, true)) {
+        pthread_mutex_unlock(&pool->resize_mutex);
         pthread_mutex_lock(&pool->shutdown_mutex);
         while (!atomic_load(&pool->shutdown_complete)) {
             pthread_cond_wait(&pool->shutdown_cond, &pool->shutdown_mutex);
@@ -678,6 +680,7 @@ int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
     for (size_t i = 0; i < pool->worker_capacity; i++) {
         if (pool->workers[i].initialized) pthread_join(pool->workers[i].thread, NULL);
     }
+    pthread_mutex_unlock(&pool->resize_mutex);
 
     pthread_mutex_lock(&pool->shutdown_mutex);
     atomic_store(&pool->shutdown_complete, true);
