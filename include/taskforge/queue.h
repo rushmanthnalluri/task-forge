@@ -65,8 +65,10 @@ taskforge_status_t queue_push(taskforge_queue_t* queue, const taskforge_task_t* 
 taskforge_status_t queue_try_push(taskforge_queue_t* queue, const taskforge_task_t* task);
 taskforge_status_t queue_push_timeout(taskforge_queue_t* queue, const taskforge_task_t* task, uint32_t timeout_ms);
 
-/* Pop task: blocking until item available or queue stopped */
+/* Pop blocks until an item is available or the queue is stopped. */
 bool queue_pop(taskforge_queue_t* queue, taskforge_task_t* out_task);
+/* Timed pop is for worker polling; false means timeout or a stopped/empty queue. */
+bool queue_pop_timeout(taskforge_queue_t* queue, taskforge_task_t* out_task, uint32_t timeout_ms);
 bool queue_try_pop(taskforge_queue_t* queue, taskforge_task_t* out_task);
 
 /* Queue management */
