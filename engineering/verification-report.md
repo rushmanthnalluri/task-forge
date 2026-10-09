@@ -1,6 +1,6 @@
 # TaskForge Verification Report
 
-**Updated:** 2026-10-09 22:31 IST  
+**Updated:** 2026-10-09 22:35 IST  
 **Important limitation:** no local repository checkout was available at `/root/task-forge` in the current execution container. The local status/build/test commands were not run here. Remote results below are observed GitHub Actions results.
 
 ## Confirmed remote verification
@@ -55,3 +55,10 @@ This result applies to that exact main commit, not to the IPC branch commits add
 ## Final gate
 
 Review the current branch diff and all CI job results before merge. If a check fails, record its actual output, diagnose root cause, add regression protection, and rerun. Do not downgrade or disable a check to force a green result.
+
+
+## Iteration failures and correction
+
+- Run #179 on commit `f344f5f00aba90d88735f06bd4eb6011d6e96489` and run #180 on `cab281aca224b892ccf1d090e748c92f2cac6b60` failed during compilation. The logs showed `CLOCK_MONOTONIC` undeclared (missing `<time.h>`) and `unlink_socket_if_same` implicitly declared (helper accidentally removed during a refactor).
+- Corrective commit: `2aa5972bac1faeac30c96f2e42d2799cce3432eb` restores the helper and includes `<time.h>`.
+- A new CI run for that corrected commit was queued at the time of this update; its result must be checked before merging.
