@@ -1,6 +1,6 @@
 # Engineering backlog
 
-**Updated:** 2026-10-09 22:32:41 IST  
+**Updated:** 2026-10-09 22:42 IST  
 **Deadline:** 2026-10-10 12:50 IST
 
 Status values: **Done on branch** means implemented but not yet CI-verified; **Open** means not implemented; **Blocked** means unable to verify with currently available tools.
@@ -9,16 +9,20 @@ Status values: **Done on branch** means implemented but not yet CI-verified; **O
 
 - [x] **RESIZE-1: Remove callback deadlock during shrink.** Acceptance: worker callbacks can call `taskforge_pool_worker_count()` while another thread shrinks the pool; regression test completes within the test timeout. Status: Done on branch; CI pending.
 - [x] **RESIZE-2: Make stats safe during resize.** Acceptance: stats uses an atomic worker-count snapshot and never locks a deque that resize has destroyed; repeated shrink/grow and callback stats queries pass under TSan. Status: Done on branch; CI pending.
-- [ ] **IPC-1: Correct request/response framing.** In progress on PR #6. Acceptance: exact-length body handling, version checks, embedded newline results, malformed input rejection, and a shared total response deadline pass CI.
+- [x] **IPC-1: Correct request/response framing.** Response bodies use exact-length reads; multiline results are supported; unsupported versions and malformed response headers are rejected; one monotonic deadline spans header/body reads. Request arguments containing NUL/CR/LF are explicitly rejected by the text-only v1 contract. Combined CI pending.
 - [x] **QUEUE-1: Remove allocation-dependent producer cancellation bookkeeping.** Acceptance: no producer-turn cancellation allocation exists; concurrent timed-out producers cannot poison later queue progress. Trade-off: strict FIFO producer fairness is not promised and is documented in the public queue header. Latest branch CI still required.
 - [ ] **LIFECYCLE-1: Test submit/shutdown and resize/shutdown races.** Acceptance: concurrent calls terminate deterministically, accepted tasks have documented outcomes, and no worker is joined twice.
 
 ## P2 — correctness, observability, and test depth
 
-- [ ] **MAP-1: Correct per-item timeout report statuses.** Acceptance: timed-out and canceled items have distinct, documented report status; running tasks are not claimed to have been interrupted.
+- [x] **IPC-3: Normalize handler failure with no error code.** Server/client fallback to `TASKFORGE_ERR_FAILED`, covered by regression test. Combined CI pending.
+- [x] **IPC-4: Make IPC response timeout total.** One monotonic deadline covers header and body; slow-trickle regression added. Combined CI pending.
+- [x] **IPC-5: Reject ambiguous request text.** NUL/CR/LF arguments fail before connect under the documented text-only request contract. Combined CI pending.
+
+- [x] **MAP-1: Correct per-item timeout report statuses.** Timed-out and canceled items are distinguished; later futures use cancellation results or zero-time terminal-state checks. Running tasks are not claimed to have been interrupted. Combined CI pending.
 - [ ] **FUTURE-1: Expand cancellation race tests.** Acceptance: cancellation before dequeue, racing with transition to RUNNING, and immediate shutdown each have exactly-once cleanup and stable terminal state.
 - [ ] **PARSER-1: Add parser property/fuzz coverage.** Acceptance: malformed, huge, and boundary-valued specifications fail safely without integer overflow or unbounded unexpected allocation.
-- [ ] **IPC-2: Validate server handler table and socket path.** In progress on PR #6. Acceptance: null names/callbacks, overlong paths, and unsafe existing path types are rejected without deleting unrelated filesystem entries.
+- [x] **IPC-2: Validate server handler table and socket path.** Invalid handler tables and overlong paths are rejected; existing paths are not deleted; cleanup only removes the socket inode created by the server. Combined CI pending.
 - [ ] **LOG-1: Review logger failure behavior.** Acceptance: file write/flush failures have a documented policy and cannot corrupt pool lifecycle.
 - [ ] **CLI-1: Complete review of every command, signal handling, and shutdown path.** Acceptance: documented commands match actual parser behavior and invalid/oversized input is handled predictably.
 
