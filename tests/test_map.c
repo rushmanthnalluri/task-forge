@@ -43,6 +43,11 @@ static void* slow_map_task(void* arg) {
     return arg;
 }
 
+static void* inline_timeout_slow_task(void* arg) {
+    usleep(150000);
+    return arg;
+}
+
 static atomic_bool map_first_started = false;
 
 static void* shutdown_race_map_task(void* arg) {
@@ -74,7 +79,7 @@ static void* reentrant_timeout_map_task(void* arg) {
     void* items[2] = {(void*)1, (void*)2};
     taskforge_map_item_result_t report[2];
     taskforge_status_t status = taskforge_map_timeout_report(
-        g_nested_pool, slow_map_task, items, 2, report, 1);
+        g_nested_pool, inline_timeout_slow_task, items, 2, report, 50);
     assert(status == TASKFORGE_ERR_TIMEOUT);
     assert(report[0].status == TASKFORGE_OK);
     assert(report[0].result == (void*)1);
