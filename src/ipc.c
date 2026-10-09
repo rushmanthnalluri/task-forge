@@ -203,7 +203,9 @@ int taskforge_ipc_client_call(const char* path, const char* name, const char* ar
         len > TASKFORGE_IPC_MAX_PAYLOAD || !result || cap == 0 ||
         strlen(path) >= sizeof(((struct sockaddr_un*)0)->sun_path) ||
         strlen(name) >= TASKFORGE_IPC_MAX_NAME ||
-        strpbrk(name, " \t\r\n") != NULL) return -1;
+        strpbrk(name, " \t\r\n") != NULL ||
+        (len > 0 && (memchr(arg, '\0', len) || memchr(arg, '\n', len) ||
+                     memchr(arg, '\r', len)))) return -1;
     int fd = socket(AF_UNIX, SOCK_STREAM, 0); if (fd < 0) return -1;
     struct sockaddr_un a = {0}; a.sun_family = AF_UNIX; strncpy(a.sun_path, path, sizeof(a.sun_path)-1);
     if (connect(fd, (struct sockaddr*)&a, sizeof(a)) != 0) { close(fd); return -1; }
