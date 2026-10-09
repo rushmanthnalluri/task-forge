@@ -1,6 +1,6 @@
 # Research log
 
-**Updated:** 2026-10-09 22:49 IST
+**Updated:** 2026-10-09 22:52 IST
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -67,3 +67,13 @@
 - **Decision:** Capture each earlier future's terminal status, error, and result while draining submitted work.
 - **Regression:** A one-worker, capacity-one pool starts item 1, queues item 2, and uses concurrent immediate shutdown to reject item 3; the report must retain item 1's success and item 2's shutdown error.
 - **Validation:** Covered by the combined code/test head that passed run `37965261107`; final docs-only revision still needs revalidation.
+
+
+## R-009 — Timeout semantics for worker-inline map calls
+
+- **Question:** How can `taskforge_map_timeout` preserve its timeout contract when called from a worker of the same pool, where inline execution is required to avoid deadlock?
+- **Repository-specific evidence:** The inline path avoided nested-worker deadlock but did not check the timeout, so it could report success and start all callbacks after the deadline.
+- **Decision:** Compute a monotonic deadline for the inline path; check it before and after each callback; preserve a callback result if it completed; stop starting later callbacks after expiry and mark those items canceled. A callback already running cannot be interrupted safely, so the call may return after the nominal deadline.
+- **Alternatives rejected:** Submit-and-wait would reintroduce single-worker deadlock; forcibly canceling a running callback is unsafe; silently ignoring the timeout violates the API.
+- **Regression:** `tests/test_map.c` runs a worker-inline timeout map with a 50 ms deadline and 150 ms callback, expecting overall `TIMEOUT`, first item `OK`, and later item `CANCELLED`.
+- **Validation:** Targeted regression added; CI pending on branch `fix/inline-map-timeout`.
