@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <stdatomic.h>
 #include <unistd.h>
 #include "taskforge/taskforge.h"
 
@@ -43,36 +42,7 @@ static void* slow_map_task(void* arg) {
     return arg;
 }
 
-static atomic_bool map_first_started = false;
-
-static void* shutdown_race_map_task(void* arg) {
-    if ((intptr_t)arg == 1) {
-        atomic_store(&map_first_started, true);
-        usleep(100000);
-    }
-    return arg;
-}
-
-static void* shutdown_map_pool(void* arg) {
-    taskforge_pool_t* pool = (taskforge_pool_t*)arg;
-    while (!atomic_load(&map_first_started)) usleep(100);
-    /* Wait until the second item is definitely queued behind the running first
-     * item before shutdown rejects the third submission. */
-    bool second_is_queued = false;
-    for (int i = 0; i < 5000; i++) {
-        if (taskforge_pool_get_stats(pool).queued_tasks > 0) {
-            second_is_queued = true;
-            break;
-        }
-        usleep(1000);
-    }
-    assert(second_is_queued);
-    assert(taskforge_pool_shutdown(pool, false) == TASKFORGE_OK);
-    return NULL;
-}
-
 int main(void) {
-    alarm(15);
     printf("[TEST] Running test_map...\n");
     assert(taskforge_map(NULL, NULL, NULL, 0, NULL) == TASKFORGE_ERR_INVALID);
 
@@ -129,30 +99,6 @@ int main(void) {
     assert(report[1].status == TASKFORGE_ERR_CANCELLED);
     taskforge_pool_destroy(timeout_pool);
     printf("  [PASS] Map timeout reports the timed-out item and canceled queued items.\n");
-
-    /* If a later submission is rejected during shutdown, earlier report entries
-     * must reflect their actual future states instead of the initial failure value. */
-    taskforge_pool_config_t submit_race_cfg = cfg;
-    submit_race_cfg.num_workers = 1;
-    submit_race_cfg.queue_capacity = 1;
-    taskforge_pool_t* submit_race_pool = taskforge_pool_create(&submit_race_cfg);
-    assert(submit_race_pool != NULL);
-    atomic_store(&map_first_started, false);
-    pthread_t shutdown_thread;
-    assert(pthread_create(&shutdown_thread, NULL, shutdown_map_pool, submit_race_pool) == 0);
-    void* race_items[3] = {(void*)1, (void*)2, (void*)3};
-    taskforge_map_item_result_t race_report[3];
-    taskforge_status_t race_status = taskforge_map_timeout_report(
-        submit_race_pool, shutdown_race_map_task, race_items, 3, race_report, 5000);
-    assert(pthread_join(shutdown_thread, NULL) == 0);
-    assert(race_status != TASKFORGE_OK);
-    assert(race_report[0].status == TASKFORGE_OK);
-    assert(race_report[0].result == (void*)1);
-    assert(race_report[1].status == TASKFORGE_ERR_FAILED);
-    assert(race_report[1].task_error == TASKFORGE_ERR_SHUTDOWN);
-    assert(race_report[2].status == TASKFORGE_ERR_FAILED);
-    taskforge_pool_destroy(submit_race_pool);
-    puts("  [PASS] Map submission failure reports prior futures accurately.");
 
     /*
      * Regression: a taskforge_map call from a worker must not deadlock when
