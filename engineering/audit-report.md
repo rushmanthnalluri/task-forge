@@ -1,7 +1,7 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 22:49 IST  
+**Last confirmed execution time:** 2026-10-09 22:52 IST  
 **Baseline branch:** `main`  
 **Baseline commit:** `3c4b115da5e5bb14516d707858581aa7e62a240c`  
 **Coverage status:** In progress; see subsystem ledger below.
@@ -105,15 +105,15 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Regression test:** A one-worker, capacity-one pool runs item 1, queues item 2, then concurrent immediate shutdown rejects item 3; the report must retain item 1's success and item 2's shutdown failure.
 - **Status:** Implemented on combined PR #5; code/test head `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a` passed all five CI gates; later documentation-only updates require revalidation.
 
-### TF-MAP-003 — Inline map execution does not enforce the timeout
+### TF-MAP-003 — Inline map execution did not enforce the timeout
 
 - **Component:** `src/map.c`, worker-thread inline execution path
 - **Severity/confidence:** P2 / high
-- **Evidence:** When map is called from a worker in the same pool, the implementation runs items inline and returns success without checking the timeout deadline.
-- **Impact:** `taskforge_map_timeout` can report success after its requested timeout and continue starting later callbacks.
-- **Proposed remediation:** Enforce the deadline between inline callbacks, report unstarted items as timed out/canceled, and document that an already-running callback cannot be forcibly interrupted.
-- **Required regression test:** Invoke a timeout map from a worker with a slow first callback and verify the overall status and later item reports after the deadline.
-- **Status:** Open.
+- **Evidence:** The inline path previously executed every callback and returned success without checking the deadline.
+- **Impact:** `taskforge_map_timeout` could exceed its requested timeout and continue starting later callbacks.
+- **Remediation:** Check a monotonic deadline before and after each inline callback. Preserve a completed callback's result, stop starting later callbacks after the deadline, and report unstarted items as canceled. Running callbacks remain non-interruptible.
+- **Regression test:** A worker invokes `taskforge_map_timeout_report` with a 50 ms deadline and a 150 ms first callback; the overall result must be `TIMEOUT`, the completed first item remains `OK`, and the second item is `CANCELLED`.
+- **Status:** Implemented on `fix/inline-map-timeout`; targeted regression added; combined CI pending.
 
 ### TF-QUEUE-002 — `queue_pop` returns false after an internal polling timeout
 
