@@ -2,8 +2,8 @@
 
 **Updated:** 2026-10-09 23:02 IST  
 **Deadline:** 2026-10-10 12:50 IST  
-**Latest green main head:** `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`; post-merge run [37966256429](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966256429) passed all five gates.  
-**Latest green queue-pop PR head:** `3e3ebe6918d92ced72b0ea7914523bfd508b651c`; run [37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175) passed all five gates. This documentation refresh requires revalidation.
+**Latest green main head:** `05da37cbfff65cd2967a8616eed6a31a1fffb613`; post-merge run [37967114988](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967114988) passed all five gates.  
+**Latest green queue-pop PR head:** `af64233d59ef3994eb5a99ecf7840e3939d6ab80`; run [37967008767](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967008767) passed all five gates. The benchmark follow-up branch has not yet been CI-verified.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
 
@@ -30,7 +30,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 ## P3 — maintainability, security, and developer experience
 
 - [ ] **DOCS-LICENSE-1: Resolve missing license declaration.** The repository has no `LICENSE` file. This requires the owner's license choice; do not add a license by inference. Once selected, add the canonical text and reference it from README.
-- [ ] **BENCH-1: Fix false CSV-success reporting.** `benchmarks/bench_scaling.c` prints that CSV was saved even if opening the output file fails. Return failure or clearly report the artifact as unavailable; test an unwritable output path.
+- [x] **BENCH-1: Fix false CSV-success reporting.** The benchmark now fails clearly if the CSV cannot be opened or written/closed; `tests/test_bench_output.sh` runs from a temporary directory without the output folder and verifies the nonzero status and actionable error. CI pending on `fix/benchmark-csv-error`.
 - [ ] **CI-1: Add a supported static-analysis pass.** Evaluate compiler diagnostics and clang-tidy/cppcheck availability before adding a tool.
 - [ ] **SEC-1: Run secret/dependency scanning appropriate to the repository.** No package manifest or lockfile is present; the connected GitHub API did not expose secret/dependency/code-scanning alert endpoints, so these scans remain unverified.
 - [ ] **DOCS-1: Reconcile README/design claims with verified behavior and supported platforms.** Keep benchmark claims reproducible and distinguish Linux-tested behavior from untested POSIX platforms.
