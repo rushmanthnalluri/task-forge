@@ -69,6 +69,19 @@ static void* shutdown_map_pool(void* arg) {
     return NULL;
 }
 
+static void* reentrant_timeout_map_task(void* arg) {
+    (void)arg;
+    void* items[2] = {(void*)1, (void*)2};
+    taskforge_map_item_result_t report[2];
+    taskforge_status_t status = taskforge_map_timeout_report(
+        g_nested_pool, slow_map_task, items, 2, report, 1);
+    assert(status == TASKFORGE_ERR_TIMEOUT);
+    assert(report[0].status == TASKFORGE_OK);
+    assert(report[0].result == (void*)1);
+    assert(report[1].status == TASKFORGE_ERR_CANCELLED);
+    return (void*)7;
+}
+
 int main(void) {
     alarm(15);
     printf("[TEST] Running test_map...\n");
@@ -165,10 +178,16 @@ int main(void) {
     assert(nested_future != NULL);
     assert(taskforge_future_wait(nested_future, NULL) == TASKFORGE_OK);
     taskforge_future_release(nested_future);
+    taskforge_future_t* timeout_nested_future = taskforge_submit(
+        nested_pool, reentrant_timeout_map_task, NULL);
+    assert(timeout_nested_future != NULL);
+    assert(taskforge_future_wait(timeout_nested_future, NULL) == TASKFORGE_OK);
+    taskforge_future_release(timeout_nested_future);
+    printf("  [PASS] Reentrant taskforge_map avoids single-worker deadlock.\n");
+    printf("  [PASS] Inline map timeout stops starting callbacks after deadline.\n");
     taskforge_pool_shutdown(nested_pool, true);
     taskforge_pool_destroy(nested_pool);
     g_nested_pool = NULL;
-    printf("  [PASS] Reentrant taskforge_map avoids single-worker deadlock.\n");
 
     free(items);
     free(results);
