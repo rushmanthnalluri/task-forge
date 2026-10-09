@@ -86,8 +86,14 @@ static taskforge_status_t map_impl(taskforge_pool_t* pool,
                 report[i].task_error = TASKFORGE_ERR_FAILED;
             }
             for (size_t j = 0; j < i; j++) {
-                taskforge_status_t wait_status =
-                    taskforge_future_wait(futures[j], results ? &results[j] : NULL);
+                void* item_result = NULL;
+                taskforge_status_t wait_status = taskforge_future_wait(futures[j], &item_result);
+                if (results) results[j] = item_result;
+                if (report) {
+                    report[j].status = wait_status;
+                    report[j].task_error = taskforge_future_get_error(futures[j]);
+                    report[j].result = wait_status == TASKFORGE_OK ? item_result : NULL;
+                }
                 if (wait_status != TASKFORGE_OK && overall_status == TASKFORGE_OK) {
                     if (wait_status == TASKFORGE_ERR_FAILED) {
                         int error_code = taskforge_future_get_error(futures[j]);
