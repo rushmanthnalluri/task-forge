@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,6 +34,12 @@ static int fail_handler(const char* arg, size_t length, char* result, size_t cap
                         int* error_code, void* context) {
     (void)arg; (void)length; (void)result; (void)capacity; (void)context;
     *error_code = 77;
+    return -1;
+}
+
+static int fail_without_error_handler(const char* arg, size_t length, char* result,
+                                            size_t capacity, int* error_code, void* context) {
+    (void)arg; (void)length; (void)result; (void)capacity; (void)error_code; (void)context;
     return -1;
 }
 
@@ -107,6 +114,27 @@ static int raw_request(const char* path, const char* request) {
     return used > 0 && strncmp(response, "1 0 ", 4) == 0 ? 0 : -1;
 }
 
+static void test_path_safety(const char* path, const taskforge_ipc_handler_t* handlers,
+                             size_t count) {
+    static const char marker[] = "keep this file";
+    int fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0600);
+    assert(fd >= 0);
+    assert(write(fd, marker, sizeof(marker)) == (ssize_t)sizeof(marker));
+    assert(close(fd) == 0);
+
+    /* Starting/stopping IPC must never unlink a non-socket path. */
+    assert(taskforge_ipc_server_run(path, handlers, count, 1) == -1);
+    assert(taskforge_ipc_server_stop(path) == -1);
+    fd = open(path, O_RDONLY);
+    assert(fd >= 0);
+    char content[sizeof(marker)] = {0};
+    assert(read(fd, content, sizeof(content)) == (ssize_t)sizeof(content));
+    assert(close(fd) == 0);
+    assert(memcmp(content, marker, sizeof(marker)) == 0);
+    assert(unlink(path) == 0);
+    puts("  [PASS] IPC server start/stop preserves existing non-socket files.");
+}
+
 static void test_disconnect_recovery(const char* path) {
     int entered[2], release[2];
     assert(pipe(entered) == 0 && pipe(release) == 0);
@@ -147,15 +175,17 @@ int main(void) {
         {"echo", echo_handler, NULL},
         {"multiline", multiline_handler, NULL},
         {"fail", fail_handler, NULL},
-        {"slow", slow_handler, NULL}
+        {"slow", slow_handler, NULL},
+        {"silent-fail", fail_without_error_handler, NULL}
     };
-    pid_t server = start_server(path, handlers, 4, 1);
+    test_path_safety(path, handlers, 5);
+    pid_t server = start_server(path, handlers, 5, 1);
     char result[128]; int error = 0;
     assert(taskforge_ipc_client_call(path, "echo", "hello", 5, result, sizeof(result), &error, 1000) == 0);
     assert(strcmp(result, "hello") == 0 && error == 0);
     wait_server(path, server);
 
-    server = start_server(path, handlers, 4, 1);
+    server = start_server(path, handlers, 5, 1);
     assert(taskforge_ipc_client_call(path, "echo", "  hello", 7, result, sizeof(result), &error, 1000) == 0);
     assert(strcmp(result, "  hello") == 0 && error == 0);
     wait_server(path, server);
@@ -170,16 +200,21 @@ int main(void) {
     wait_server(path, server);
 
     server = start_server(path, handlers, 3, 1);
-    assert(raw_request(path, "999 bad\n") == 0);
+    assert(raw_request(path, "999 echo x\n") == 0);
     wait_server(path, server);
 
     server = start_server(path, handlers, 3, 1);
     assert(taskforge_ipc_client_call(path, "slow", "x", 1, result, sizeof(result), &error, 10) != 0);
     wait_server(path, server);
 
-    server = start_server(path, handlers, 3, 1);
+    server = start_server(path, handlers, 5, 1);
     assert(taskforge_ipc_client_call(path, "fail", "x", 1, result, sizeof(result), &error, 1000) == 77);
     assert(error == 77);
+    wait_server(path, server);
+
+    server = start_server(path, handlers, 5, 1);
+    assert(taskforge_ipc_client_call(path, "silent-fail", "", 0, result, sizeof(result), &error, 1000) == TASKFORGE_ERR_FAILED);
+    assert(error == TASKFORGE_ERR_FAILED);
     wait_server(path, server);
     test_disconnect_recovery(path);
     printf("[PASS] test_ipc completed separate-process success, error, timeout, and disconnect recovery paths.\n");
