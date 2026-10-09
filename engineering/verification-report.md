@@ -22,7 +22,7 @@ The inline-map-timeout follow-up passed all five gates on PR head `e8fa17d39403a
 - Branch: `fix/queue-pop-contract`
 - Change: separate blocking `queue_pop` from timed `queue_pop_timeout`; work-stealing workers use the timed variant to poll local deques.
 - Regression coverage: timed idle return, blocking pop waiting beyond 50 ms until a task arrives, and shutdown waking a blocked empty-queue pop.
-- PR #8: https://github.com/rushmanthnalluri/task-forge/pull/8. Code/test head `e29d9680d5311819c8323b8999d00496bda2ede0` passed all five gates in [run 37966495579](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966495579). Engineering-record edits after that green head require a fresh run before merge.
+- PR #8: https://github.com/rushmanthnalluri/task-forge/pull/8. PR #8 head `c2aff127140d1ff85f26973457d1d9a04ef71409` passed all five gates in [run 37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813). This engineering-record refresh requires a fresh run before merge.
 
 ## Tools and checks actually executed
 

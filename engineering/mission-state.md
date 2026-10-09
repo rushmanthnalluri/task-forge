@@ -1,6 +1,6 @@
 # Mission state
 
-**Last confirmed execution:** 2026-10-09 22:59 IST  
+**Last confirmed execution:** 2026-10-09 23:03 IST  
 **Hard deadline:** 2026-10-10 12:50 IST (Asia/Kolkata)  
 **Time remaining at this update:** approximately 13 hours 51 minutes.
 
@@ -12,7 +12,7 @@
 - Inline map timeout PR #7 merged as `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`.
 - Post-merge CI run [37966256429](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966256429) passed all five gates on main.
 - Current follow-up PR #8: https://github.com/rushmanthnalluri/task-forge/pull/8 on branch `fix/queue-pop-contract`.
-- Code/test head `e29d9680d5311819c8323b8999d00496bda2ede0` passed all five gates in run [37966495579](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966495579). This engineering-record refresh advances the PR head and requires revalidation.
+- Code/test and engineering-record head `c2aff127140d1ff85f26973457d1d9a04ef71409` passed all five gates in run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813). This state refresh advances the PR head and requires revalidation.
 - No local checkout is available; repository changes use the GitHub connector and validation uses observed GitHub Actions results.
 
 ## Latest verified work
@@ -26,7 +26,7 @@
 
 ## Current follow-up: queue pop contract
 
-The public `queue_pop` now blocks until work or shutdown. A separate `queue_pop_timeout` supports periodic polling in work-stealing workers. Regression tests cover timeout on an empty queue, blocking beyond 50 ms until a task is pushed, and shutdown waking a blocked pop. Code/test head passed all five gates; the upcoming documentation-only head must be revalidated.
+The public `queue_pop` now blocks until work or shutdown. A separate `queue_pop_timeout` supports periodic polling in work-stealing workers. Regression tests cover timeout on an empty queue, blocking beyond 50 ms until a task is pushed, and shutdown waking a blocked pop. All five gates passed on PR #8 head `c2aff127`; this documentation refresh must be revalidated.
 
 ## Remaining risks and blockers
 
