@@ -100,9 +100,9 @@ static int raw_request(const char* path, const char* request) {
         ssize_t received = recv(fd, response + used, 1, 0);
         if (received < 0 && errno == EINTR) continue;
         if (received <= 0) break;
-        if (response[used++] == '\\n') break;
+        if (response[used++] == '\n') break;
     }
-    response[used] = '\\0';
+    response[used] = '\0';
     close(fd);
     return used > 0 && strncmp(response, "1 0 ", 4) == 0 ? 0 : -1;
 }
