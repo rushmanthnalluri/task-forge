@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <time.h>
 #include <signal.h>
 #include "taskforge/ipc.h"
 
@@ -135,6 +136,60 @@ static void test_path_safety(const char* path, const taskforge_ipc_handler_t* ha
     puts("  [PASS] IPC server start/stop preserves existing non-socket files.");
 }
 
+static pid_t start_trickle_body_server(const char* path) {
+    unlink(path);
+    pid_t pid = fork();
+    assert(pid >= 0);
+    if (pid == 0) {
+        int server = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (server < 0) _exit(1);
+        struct sockaddr_un address = {0};
+        address.sun_family = AF_UNIX;
+        strncpy(address.sun_path, path, sizeof(address.sun_path) - 1);
+        if (bind(server, (struct sockaddr*)&address, sizeof(address)) != 0 ||
+            listen(server, 1) != 0) _exit(2);
+        int client = accept(server, NULL, NULL);
+        if (client < 0) _exit(3);
+        char ch;
+        do {
+            ssize_t got = recv(client, &ch, 1, 0);
+            if (got <= 0) _exit(4);
+        } while (ch != '\n');
+
+        static const char header[] = "1 1 0 4\n";
+        if (send(client, header, sizeof(header) - 1, MSG_NOSIGNAL) !=
+            (ssize_t)(sizeof(header) - 1)) _exit(5);
+        static const char body[] = "okay\n";
+        for (size_t i = 0; i < sizeof(body) - 1; i++) {
+            if (send(client, &body[i], 1, MSG_NOSIGNAL) != 1) break;
+            usleep(40000);
+        }
+        close(client);
+        close(server);
+        _exit(0);
+    }
+    for (int i = 0; i < 100 && access(path, F_OK) != 0; i++) usleep(10000);
+    assert(access(path, F_OK) == 0);
+    return pid;
+}
+
+static void test_total_response_deadline(const char* path) {
+    pid_t server = start_trickle_body_server(path);
+    char result[16];
+    int error = -1;
+    struct timespec start, end;
+    assert(clock_gettime(CLOCK_MONOTONIC, &start) == 0);
+    int rc = taskforge_ipc_client_call(path, "echo", "x", 1, result, sizeof(result),
+                                       &error, 100);
+    assert(clock_gettime(CLOCK_MONOTONIC, &end) == 0);
+    int64_t elapsed_ms = (int64_t)(end.tv_sec - start.tv_sec) * 1000LL +
+                         (int64_t)(end.tv_nsec - start.tv_nsec) / 1000000LL;
+    assert(rc == -2);
+    assert(elapsed_ms < 145);
+    wait_server(path, server);
+    puts("  [PASS] IPC response deadline is total, not reset by each body byte.");
+}
+
 static void test_disconnect_recovery(const char* path) {
     int entered[2], release[2];
     assert(pipe(entered) == 0 && pipe(release) == 0);
@@ -179,6 +234,7 @@ int main(void) {
         {"silent-fail", fail_without_error_handler, NULL}
     };
     test_path_safety(path, handlers, 5);
+    test_total_response_deadline(path);
     pid_t server = start_server(path, handlers, 5, 1);
     char result[128]; int error = 0;
     assert(taskforge_ipc_client_call(path, "echo", "hello", 5, result, sizeof(result), &error, 1000) == 0);
