@@ -97,6 +97,7 @@ void queue_destroy(taskforge_queue_t* q) {
     pthread_mutex_destroy(&q->mutex);
     pthread_cond_destroy(&q->not_empty);
     pthread_cond_destroy(&q->not_full);
+    free(q->canceled_tickets);
     free(q);
 }
 
