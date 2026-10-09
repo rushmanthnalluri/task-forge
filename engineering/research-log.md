@@ -1,6 +1,6 @@
 # Research log
 
-**Updated:** 2026-10-09 22:39 IST
+**Updated:** 2026-10-09 22:42 IST
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -18,8 +18,9 @@
   - POSIX `recv`: https://pubs.opengroup.org/onlinepubs/9799919799/functions/recv.html
   - POSIX `send`: https://pubs.opengroup.org/onlinepubs/9799919799/functions/send.html
 - **Repository-specific evidence:** Client API accepts pointer plus byte length, and response header carries a body length, but both request and response bodies are read using newline-delimited logic. The server parses but does not validate the request protocol version.
-- **Options:** (A) Restrict v1 to newline-free text and document that limitation; (B) introduce explicit length framing and a protocol-version transition. Option B better matches the existing length-aware API, but needs compatibility analysis and exact-length/timeout tests.
-- **Decision:** Keep open until compatibility and framing behavior can be changed with regression coverage. No protocol changes made yet.
+- **Options:** (A) Restrict v1 to newline-free text and reject ambiguous arguments; (B) change request wire framing and bump the protocol version.
+- **Decision:** Keep v1 request arguments text-only and reject NUL/CR/LF before connecting, avoiding silent truncation without an unplanned wire-format break. Length-frame response bodies, where the protocol already advertises an explicit result length, and validate the trailing delimiter. Use one monotonic deadline for response header and body.
+- **Regression coverage:** multiline result round-trip, unsupported protocol version, invalid request text, and a slow-trickle body deadline. Combined CI pending.
 
 ## R-003 — Producer-ticket cancellation under allocation failure
 - **Question:** Can queue fairness bookkeeping fail without losing liveness?
@@ -37,3 +38,15 @@
 - **Decision:** Attempt to cancel the timed-out current future if pending. For later futures, record `TASKFORGE_ERR_CANCELLED` when cancellation succeeds; otherwise use a zero-time wait to record whether the future completed, failed, was canceled, or remains timed out. Preserve the underlying task error and completed result where available.
 - **Regression:** Use a one-worker pool with a slow first task and queued second task; assert first item is timed out and second is canceled.
 - **Trade-off:** Running callbacks cannot be interrupted safely by this API; they may finish after the map call returns.
+
+
+## R-005 — IPC socket-path safety
+
+- **Evidence:** POSIX/Linux `unlink(2)` removes a pathname that may name a regular file as well as a socket. See https://man7.org/linux/man-pages/man2/unlink.2.html and https://man7.org/linux/man-pages/man7/unix.7.html.
+- **Decision:** Reject pre-existing paths; do not unlink after bind failure; on successful bind, remember the socket inode and remove only that same inode during cleanup. The explicit cleanup API rejects non-socket paths.
+- **Trade-off:** stale socket files require explicit owner cleanup; the API named `server_stop` unlinks the pathname but cannot stop a server blocked in `accept()`, and this limitation is documented.
+
+## R-006 — Handler error contract
+
+- **Evidence:** Failure status plus error code zero could be returned to the client as success.
+- **Decision:** Normalize a failed handler with an unset error code to `TASKFORGE_ERR_FAILED` on the server and client; add a handler regression test.
