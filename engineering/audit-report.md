@@ -84,7 +84,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Remediation:** Removed the heap-backed producer-ticket cancellation ledger. Producers now wait on queue capacity and shutdown predicates directly, so cancellation cannot lose a ticket due to `realloc` failure.
 - **Regression test:** Added 24 concurrent timed-out producers and verified the queue still accepts and drains later work.
 - **Trade-off:** producer wake-up order is scheduler-dependent; strict FIFO fairness is not promised. This is now stated in `include/taskforge/queue.h`.
-- **Status:** Implemented on `mission/engineering-hardening-2026-10-09`; combined CI pending.
+- **Status:** Implemented on combined PR #5; CI run [37965261107](https://github.com/rushmanthnalluri/task-forge/actions/runs/37965261107) passed all five gates on code/test head `b6c9eacaa42e724d6dec0258ac7e5ec725f1304a`; later documentation-only updates require revalidation.
 
 ### TF-MAP-001 — Timed map per-item reports do not describe all canceled items
 - **Component:** `src/map.c`, `taskforge_map_timeout_report`
@@ -151,16 +151,16 @@ No dependency manifest or third-party package lockfile is present in the tracked
 |---|---|---|
 | Repository tree / tracked paths | Complete recursive tree; 44 files | Inspect every remaining file and git history before claiming full semantic coverage |
 | Pool lifecycle / resize / stats | Targeted source review | Verify mission branch via CI; expand concurrent shutdown/resize/stats tests |
-| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery added | Verify latest branch CI; strict FIFO producer fairness intentionally not guaranteed |
+| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery added | All five gates passed on code/test head `b6c9eac`; strict FIFO producer fairness intentionally not guaranteed; final docs head needs revalidation |
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
-| Map API | Source + tests; deterministic one-worker timeout report regression added | Verify latest mission-branch CI |
+| Map API | Source + tests; deterministic timeout and submission-failure report regressions added | All five gates passed on code/test head `b6c9eac`; final docs head needs revalidation; inline timeout semantics remain open |
 | Parser / workload execution | Source + parser tests | More fuzz/property tests and resource-limit behavior |
 | IPC | Source + header + tests; multiline, invalid argument, path safety, version, timeout, and error-fallback regressions added | Verify combined mission-branch CI; server_stop remains path-unlink only by documented contract |
 | CLI | Entry point and command handling reviewed partially | Finish remaining command/signal/error-path review |
 | Logging | Source reviewed | I/O error propagation and performance implications |
 | Work stealing | Source reviewed | Model-based resize/shutdown interleavings |
 | Build / CI | Makefile and workflow reviewed | Add dedicated static-analysis/security checks where justified |
-| Docs / benchmarks / scripts | README, design, and validation scripts inspected | Verify all claims/commands and benchmark reproducibility |
+| Docs / benchmarks / scripts | README, design, validation scripts and benchmark code inspected | Missing LICENSE requires owner decision; CSV false-success message and remaining command claims are open |
 | Dependency/security inventory | No manifest/lockfile found | Run compiler/static analyzer and secret scan in an executable environment |
 
 ## Baseline verification evidence
