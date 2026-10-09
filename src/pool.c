@@ -678,11 +678,13 @@ int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful) {
 
     if (!graceful) atomic_store(&pool->immediate_shutdown, true);
     queue_signal_shutdown(pool->queue, graceful);
+    /* The shutdown flag now prevents new resizes; do not hold resize_mutex
+     * while joining because running tasks may query worker_count(). */
+    pthread_mutex_unlock(&pool->resize_mutex);
 
     for (size_t i = 0; i < pool->worker_capacity; i++) {
         if (pool->workers[i].initialized) pthread_join(pool->workers[i].thread, NULL);
     }
-    pthread_mutex_unlock(&pool->resize_mutex);
 
     pthread_mutex_lock(&pool->shutdown_mutex);
     atomic_store(&pool->shutdown_complete, true);
