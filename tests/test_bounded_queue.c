@@ -138,11 +138,6 @@ int main(void) {
     }
     printf("  [PASS] Concurrent timed-out producers leave the bounded queue usable.\n");
 
-    /* Timed pop may poll, but a timeout must not stop the queue. */
-    taskforge_task_t timed_pop;
-    assert(!queue_pop_timeout(q, &timed_pop, 20));
-    printf("  [PASS] Timed pop returns on an idle interval without stopping the queue.\n");
-
     /* 4. Test blocking unblock: start consumer thread to pop */
     consumer_arg_t c_arg = { .q = q, .items_to_consume = TEST_CAPACITY, .consumed_count = 0 };
     pthread_t c_tid;
@@ -152,6 +147,11 @@ int main(void) {
     assert(c_arg.consumed_count == TEST_CAPACITY);
     assert(queue_is_empty(q));
     printf("  [PASS] Consumer drained all %d items, queue is now empty.\n", TEST_CAPACITY);
+
+    /* Timed pop may poll, but a timeout must not stop the queue. */
+    taskforge_task_t timed_pop;
+    assert(!queue_pop_timeout(q, &timed_pop, 20));
+    printf("  [PASS] Timed pop returns on an idle interval without stopping the queue.\n");
 
     taskforge_task_t after_timeouts = {
         .task_id = 3000,
