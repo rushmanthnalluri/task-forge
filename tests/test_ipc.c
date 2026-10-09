@@ -93,10 +93,17 @@ static int raw_request(const char* path, const char* request) {
     size_t length = strlen(request);
     assert(send(fd, request, length, 0) == (ssize_t)length);
     shutdown(fd, SHUT_WR);
-    char response[256];
-    ssize_t received = recv(fd, response, sizeof(response) - 1, 0);
+    char response[128];
+    size_t used = 0;
+    while (used + 1 < sizeof(response)) {
+        ssize_t received = recv(fd, response + used, 1, 0);
+        if (received < 0 && errno == EINTR) continue;
+        if (received <= 0) break;
+        if (response[used++] == '\\n') break;
+    }
+    response[used] = '\\0';
     close(fd);
-    return received > 0 ? 0 : -1;
+    return used > 0 && strncmp(response, "1 0 ", 4) == 0 ? 0 : -1;
 }
 
 static void test_disconnect_recovery(const char* path) {
