@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Latest verified CI completion:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST)  
+**Latest verified CI completion:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST)  
 **Baseline branch:** `main`  
-**Latest verified main commit:** `d34b9de4546772e99928798def5f5c2d502fa291`  
+**Latest verified main commit:** `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -191,3 +191,12 @@ GitHub Actions run [37963052958](https://github.com/rushmanthnalluri/task-forge/
 - **PR #14:** [Concurrent resize/shutdown regression](https://github.com/rushmanthnalluri/task-forge/pull/14), exact head `847e517c0ba8db8baa652b08f8cf73ed9eb98732`, merged at `2026-10-10T01:43:06Z` as `d34b9de4546772e99928798def5f5c2d502fa291`. Exact-head run [38014144625](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014144625) passed all five required gates plus GitGuardian.
 - **TF-LIFECYCLE-002 — Resize/shutdown race coverage:** `tests/test_lifecycle_races.c` keeps a resizer cycling target worker counts while graceful shutdown starts. It accepts only `TASKFORGE_OK` or `TASKFORGE_ERR_SHUTDOWN`, requires multiple resize iterations, checks no unexpected status, uses a 15-second alarm, and joins the resizer before destroying the pool. CI logs show `[PASS] concurrent resize/shutdown serializes without invalid statuses` and `ALL DISCOVERED TESTS PASSED`.
 - **Residual risks:** cancellation transition races remain open; `tests/test_map.c` has pre-existing implicit declarations for `pthread_create` and `pthread_join` because it lacks `<pthread.h>`; no license is declared; static analysis, security/dependency alert scans beyond GitGuardian, and non-Ubuntu compatibility remain unverified. No local commands were run.
+
+
+## Mission update — cancellation transition and test portability
+
+- **Current main:** `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`; post-merge run [38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) completed successfully at `2026-10-10T01:52:43Z`, all five required gates passed.
+- **PR #17 — cancellation transition races:** latest head `9782657e040d0fd6270eb7190d1d5b69f7fb3233` passed all five required gates plus GitGuardian in [run 38014612604](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014612604) and merged as `41f3ac680cce421cd0fda6f581529d0600a947bc`; post-merge main [run 38014687803](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014687803) passed all five gates. `tests/test_cancel_race.c` exercises pending cancellation vs RUNNING, 200 trials, and cancellation racing immediate shutdown. Latest logs observed 123 cancellation wins and 77 tasks running; Valgrind reports zero errors.
+- **Failure diagnosis:** earlier head `9d55ecfd5e2992356a5b25ba9b2bd99a7ebe79b1` failed because the test assumed `CANCELLED` implied the asynchronous cleanup callback had already run; `test_futures` exposed the same assumption. The final revision waits for disposal/cleanup before asserting and passed the exact-head gates. Intermediate run [38014594307](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014594307) was cancelled when the branch advanced; it is not a validation result for the final head.
+- **PR #18 — test map declarations:** added `<pthread.h>` to `tests/test_map.c`; exact-head run [38014763502](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014763502) passed all five required gates plus GitGuardian, and the build log contains no implicit-declaration warnings for `pthread_create`/`pthread_join`. Merged as `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`; post-merge main [run 38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed all five gates.
+- **Next audit priority:** IPC server stop semantics; `taskforge_ipc_server_stop` currently unlinks the socket path but does not wake a server blocked in `accept()`. Keep the limitation explicit until a safe stop protocol and regression test are verified.

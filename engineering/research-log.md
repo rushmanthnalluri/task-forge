@@ -1,6 +1,6 @@
 # Research log
 
-**Latest verified CI completion:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST)
+**Latest verified CI completion:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST)
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -119,3 +119,16 @@
 - **Repository-specific evidence:** `taskforge_pool_resize` and `taskforge_pool_shutdown` serialize through `resize_mutex`; resize requests after shutdown begins should return `TASKFORGE_ERR_SHUTDOWN`, while a resize already in progress may complete.
 - **Regression:** PR #14 adds `tests/test_lifecycle_races.c`, repeatedly cycles worker counts from 1 to 4 while the main thread begins graceful shutdown. It accepts only `TASKFORGE_OK`/`TASKFORGE_ERR_SHUTDOWN`, requires at least ten resize attempts, uses a 15-second alarm, and joins the resizer before pool destruction.
 - **Validation:** Exact-head run [38014144625](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014144625) passed all five required gates plus GitGuardian; test log explicitly reports concurrent resize/shutdown PASS. Merged as `d34b9de4546772e99928798def5f5c2d502fa291`; post-merge main run [38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) passed all five gates at 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST).
+
+
+## R-015 — Cancellation state visibility precedes queued-task cleanup
+
+- **Observation:** `taskforge_future_cancel` transitions a pending future to `CANCELLED` and broadcasts immediately; the worker later dequeues the task and invokes its cleanup callback. `future_wait` can therefore return `TASKFORGE_ERR_CANCELLED` before cleanup finishes.
+- **Regression:** PR #17 adds `tests/test_cancel_race.c` for cancellation-vs-RUNNING and cancellation-vs-immediate-shutdown, with exactly-once argument disposal checks. It also updates `tests/test_futures.c` to wait for the queued-cancellation cleanup callback before asserting its counter.
+- **Initial failure and correction:** head `9d55ecfd5e2992356a5b25ba9b2bd99a7ebe79b1` failed because the test asserted cleanup too early; the existing `test_futures` assertion exposed the same race. Final head `9782657e040d0fd6270eb7190d1d5b69f7fb3233` waits for disposal and passed all five gates plus GitGuardian in [run 38014612604](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014612604). Main run [38014687803](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014687803) passed all five gates after merge.
+
+## R-016 — Include pthread declarations directly in map tests
+
+- **Observation:** CI emitted implicit declaration warnings for `pthread_create` and `pthread_join` in `tests/test_map.c`.
+- **Fix:** PR #18 adds `<pthread.h>` to the test source.
+- **Validation:** Exact-head [run 38014763502](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014763502) passed all five required gates plus GitGuardian; its build log had no implicit pthread declaration warnings. Merged as `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`; post-merge run [38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed all five required gates at 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST).
