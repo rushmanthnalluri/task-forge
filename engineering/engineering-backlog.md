@@ -1,8 +1,8 @@
 # Engineering backlog
 
-**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)  
+**Latest verified CI completion:** 2026-10-10T01:40:54Z (2026-10-10 07:10:54 IST)  
 **Deadline:** 2026-10-10 12:50 IST  
-**Latest green main head:** `08e67833e01695ea92dedd85a8a0644c74bfe320`; post-merge run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five gates.  
+**Latest green main head:** `ff5c9026d8f8d83fee1edf068719b2a79966d43e`; post-merge run [38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) passed all five gates.  
 **Queue-pop fix:** PR #8 merged; all five gates passed on its exact head and subsequent main CI passed. **Benchmark CSV fix:** PR #9 merged; exact-head and post-merge CI passed.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
@@ -42,6 +42,8 @@ Status values: **Done** means implemented and verified at the cited revision; **
 - PR #10 merged at `2026-10-10T01:31:03Z`; its exact head passed build/tests/CLI, ASan/UBSan, TSan, Valgrind, one-million-task soak, and GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941).
 - Next priority: **FUTURE-1** cancellation-transition races (before dequeue, transition to RUNNING, immediate shutdown), with exactly-once cleanup and terminal-state assertions. Do not claim unrun local tests.
 - Remaining: cancellation-transition race coverage; fix implicit pthread declarations in `tests/test_map.c`; license owner decision; static analysis; dependency/security alert scans beyond GitGuardian; non-Ubuntu compatibility; bounded worker-capacity trade-off.
+
+- [ ] **RESIZE-4: Verify resize/shutdown interleavings.** `tests/test_lifecycle_races.c` repeatedly resizes an idle non-work-stealing pool while graceful shutdown begins, accepts only documented statuses, and joins the resizer before destroy. Test revision `847e517c0ba8db8baa652b08f8cf73ed9eb98732` passed all five gates in run 38014144625; the branch's record reconciliation must pass its own exact-head CI.
 
 ## Release gate
 

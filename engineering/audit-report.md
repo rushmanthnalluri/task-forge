@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)  
+**Latest verified CI completion:** 2026-10-10T01:40:54Z (2026-10-10 07:10:54 IST)  
 **Baseline branch:** `main`  
-**Latest verified main commit:** `08e67833e01695ea92dedd85a8a0644c74bfe320`  
+**Latest verified main commit:** `ff5c9026d8f8d83fee1edf068719b2a79966d43e`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -145,6 +145,15 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Required regression test:** Run with an unwritable output directory and verify the process does not claim successful CSV output.
 - **Status:** Fixed and merged via PR #9 at head `1483a9bc3831d90e06ce768e060f48a6fbb881cd`; PR CI run [37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851) passed all five gates. Post-merge main CI [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
+### TF-RESIZE-004 — Concurrent resize/shutdown interleaving coverage gap
+
+- **Component:** `src/pool.c`, `tests/test_lifecycle_races.c`
+- **Severity/confidence:** P2 / high-confidence coverage gap.
+- **Evidence:** PR #13 added concurrent submit/shutdown coverage, but the test suite did not force repeated resize requests to overlap graceful shutdown.
+- **Risk:** Changes to retirement and `resize_mutex` ordering could hang shutdown or return an undocumented status.
+- **Regression:** Keep resize requests active while graceful shutdown starts; allow only `TASKFORGE_OK` and `TASKFORGE_ERR_SHUTDOWN`, use a 15-second hang alarm, and join the resize caller before destruction.
+- **Verification:** Implementation/test revision `847e517c0ba8db8baa652b08f8cf73ed9eb98732` passed all five gates in [run 38014144625](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014144625). This branch is being reconciled with the newer main records; the updated head must pass CI before merge.
+
 ## Subsystem coverage ledger
 
 | Area | Reviewed | Remaining work |
@@ -179,7 +188,7 @@ GitHub Actions run [37963052958](https://github.com/rushmanthnalluri/task-forge/
 
 ## Mission update — lifecycle race coverage
 
-- **Current main:** `08e67833e01695ea92dedd85a8a0644c74bfe320`; post-merge run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) completed successfully at `2026-10-10T01:37:57Z` with all five required gates passing.
+- **Current main:** `ff5c9026d8f8d83fee1edf068719b2a79966d43e`; post-merge run [38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) completed successfully at `2026-10-10T01:40:54Z` with all five required gates passing.
 - **PR #13:** [Concurrent submission/shutdown regression](https://github.com/rushmanthnalluri/task-forge/pull/13), head `ad5dc7a6e9af5d538dba893f1bef86ca46d0d147`, merged at `2026-10-10T01:37:16Z` as `08e67833e01695ea92dedd85a8a0644c74bfe320`. Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, one-million-task soak, and GitGuardian.
 - **TF-LIFECYCLE-001 — submit/shutdown race coverage:** added in `tests/test_shutdown.c`. Concurrent producer and shutdown threads exercise graceful global-queue shutdown and immediate work-stealing shutdown; each accepted future must reach an allowed terminal state, and each submission argument must be executed or cleaned exactly once. A 30-second alarm bounds hangs. The test emitted explicit PASS lines in the observed build/test log; Valgrind reported zero errors for `test_shutdown`.
 - **Residual risks:** cancellation state-transition races remain open; the `tests/test_map.c` compile log still reports implicit declarations for `pthread_create`/`pthread_join` (missing `<pthread.h>` include); no license is declared; static analysis, dependency/security-alert scans beyond GitGuardian, and non-Ubuntu compatibility remain unverified. No local commands were run.

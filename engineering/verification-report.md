@@ -1,38 +1,30 @@
 # Verification report
 
-**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)  
+**Latest verified main CI:** 2026-10-10T01:40:54Z (2026-10-10 07:10:54 IST)  
 **Mission deadline:** 2026-10-10 12:50 IST  
-**Current main:** `08e67833e01695ea92dedd85a8a0644c74bfe320`  
-**Post-merge evidence:** [GitHub Actions run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) — completed successfully on the exact current main SHA.
+**Current main:** `ff5c9026d8f8d83fee1edf068719b2a79966d43e`  
+**Post-merge evidence:** [GitHub Actions run 38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) — all five gates passed on exact current main SHA `ff5c9026d8f8d83fee1edf068719b2a79966d43e`.
 
-## Latest main verification — 08e67833e01695ea92dedd85a8a0644c74bfe320
+## Latest main verification — ff5c9026d8f8d83fee1edf068719b2a79966d43e
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build, full tests, and CLI | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
-| AddressSanitizer and UBSan | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
-| ThreadSanitizer | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
-| Valgrind Memcheck | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
-| One-million-task soak | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
+| Build, full tests, and CLI | **PASS** | [Run 38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) |
+| AddressSanitizer and UBSan | **PASS** | [Run 38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) |
+| ThreadSanitizer | **PASS** | [Run 38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) |
+| Valgrind Memcheck | **PASS** | [Run 38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) |
+| One-million-task soak | **PASS** | [Run 38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) |
 
-## PR #13 exact-head verification
+## Recent PR verification
 
-- Head `ad5dc7a6e9af5d538dba893f1bef86ca46d0d147`; merged at `2026-10-10T01:37:16Z` as `08e67833e01695ea92dedd85a8a0644c74bfe320`.
-- [Run 38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) completed successfully at `2026-10-10T01:37:08Z`.
-- Build/tests/CLI: **PASS**; ASan/UBSan: **PASS**; TSan: **PASS**; Valgrind Memcheck: **PASS**; one-million-task soak: **PASS**; GitGuardian Security Checks: **PASS**.
-- `tests/test_shutdown.c` log explicitly shows graceful and immediate submit/shutdown race cases passing; Valgrind reports zero errors for `test_shutdown`.
+- PR #13 concurrent submission/shutdown regression: exact head `ad5dc7a6e9af5d538dba893f1bef86ca46d0d147`, [run 38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528), all five gates passed; post-merge main run 38013881871 passed all five.
+- PR #14 resize/shutdown regression revision `847e517c0ba8db8baa652b08f8cf73ed9eb98732`, [run 38014144625](https://github.com/rushmanthnuri/task-forge/actions/runs/38014144625), all five gates passed. The PR is updating its five records to current main `ff5c9026d8f8d83fee1edf068719b2a79966d43e`; the resulting head must receive a new full CI run before merge.
+- PR #15 engineering-record update: exact head `f8b8b4eae8bd76120fdedbce0496a75f3ec05944`, run 38013993307 passed all five gates; post-merge main run 38014065695 passed all five gates.
 
-## Engineering-record reconciliation
+## Remaining checks and limitations
 
-- PR #11 documentation-only head `ac7d252dc4189c95f6774823f7536eb930919c0d` passed all five gates plus GitGuardian in [run 38013637179](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013637179); merged as `e48ceca4187e8daf4395bccd97af3362901baa57`. Post-merge run [38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) passed all five gates.
-- Duplicate PR #12 was closed as superseded after its own CI passed; it was not merged because its branch conflicted with the newer documentation state.
-
-## Remaining unverified items and limitations
-
-- No local checkout was available; no local build/test/static-analysis commands were run.
-- Static analysis (e.g. clang-tidy/cppcheck), dependency vulnerability alerts, secret scanning outside GitGuardian, and non-Ubuntu compatibility remain unverified.
+- No local checkout was available; no local build, test, or static-analysis commands were run.
+- Static analysis, dependency vulnerability alerts, secret scanning beyond GitGuardian, and non-Ubuntu compatibility remain unverified.
 - No license is declared; owner authorization is required before adding one.
-- Cancellation-transition race coverage remains open. The PR #13 build log also surfaced pre-existing implicit declarations for `pthread_create`/`pthread_join` in `tests/test_map.c`; add `<pthread.h>` in a focused follow-up.
+- Additional cancellation-transition coverage and implicit `pthread_create`/`pthread_join` declarations in `tests/test_map.c` remain follow-ups.
 - CI success proves only the configured jobs and Ubuntu environment exercised; it is not proof of absence of all defects.
-
-**Documentation revision status:** The five records are being refreshed on a documentation-only branch based on `08e67833e01695ea92dedd85a8a0644c74bfe320`. This revision itself is not yet CI-verified; do not merge until the exact latest PR head passes the required gates.

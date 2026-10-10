@@ -81,8 +81,11 @@ typedef struct {
 /* Default pool configuration helper */
 void taskforge_default_config(taskforge_pool_config_t* config);
 
-/* Pool lifecycle. Shutdown is caller-thread-only and must finish before
- * destroy; destroy is not safe concurrently with any other pool operation. */
+/* Pool lifecycle. Shutdown is caller-thread-only. A submit racing shutdown
+ * may return NULL or a future that later reaches FAILED with
+ * taskforge_future_get_error(...) == TASKFORGE_ERR_SHUTDOWN when immediate
+ * shutdown discards queued work. Finish shutdown and join concurrent API callers
+ * before destroy; destroy is not safe concurrently with any other pool operation. */
 taskforge_pool_t* taskforge_pool_create(const taskforge_pool_config_t* config);
 int taskforge_pool_shutdown(taskforge_pool_t* pool, bool graceful);
 void taskforge_pool_destroy(taskforge_pool_t* pool);

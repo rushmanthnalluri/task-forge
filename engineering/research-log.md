@@ -1,6 +1,6 @@
 # Research log
 
-**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)
+**Latest verified CI completion:** 2026-10-10T01:40:54Z (2026-10-10 07:10:54 IST)
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -111,3 +111,11 @@
 - **Repository-specific evidence:** Existing shutdown tests covered submissions before shutdown, rejection after shutdown, graceful draining, and immediate cleanup, but did not force the producer and shutdown caller to overlap.
 - **Regression:** PR #13 adds concurrent producer/shutdown threads for graceful shutdown with the global queue and immediate shutdown with work stealing. It asserts 128 submission attempts, terminal states for all accepted futures, valid shutdown error codes, and `executed + cleaned == attempts` with `disposed == attempts`. A 30-second alarm bounds deadlocks.
 - **Validation:** Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed all five required gates plus GitGuardian; the build/test log shows both new race cases passing, and Valgrind reports zero errors for `test_shutdown`. Merged as `08e67833e01695ea92dedd85a8a0644c74bfe320`; post-merge main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five required gates at 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST).
+
+
+## R-014 — Resize/shutdown interleaving
+
+- **Question:** Can repeated pool resize requests race with graceful shutdown without hanging or returning an undocumented status?
+- **Repository-specific evidence:** Resize and shutdown serialize through `resize_mutex`; the PR #13 test covers submit/shutdown interleavings but not resize/shutdown.
+- **Regression:** `tests/test_lifecycle_races.c` keeps a resize caller active while graceful shutdown begins, allows only `TASKFORGE_OK` and `TASKFORGE_ERR_SHUTDOWN`, and joins the resizer before pool destruction.
+- **Validation:** Test revision `847e517c0ba8db8baa652b08f8cf73ed9eb98732` passed all five gates in [run 38014144625](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014144625). The documentation synchronization to current main `ff5c9026d8f8d83fee1edf068719b2a79966d43e` requires a fresh exact-head run before merge.
