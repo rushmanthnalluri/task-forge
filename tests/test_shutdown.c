@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <stdatomic.h>
 #include "taskforge/taskforge.h"
@@ -64,7 +65,130 @@ static void* local_deque_blocker(void* arg) {
     return NULL;
 }
 
+
+typedef struct {
+    atomic_int* executed;
+    atomic_int* cleaned;
+    atomic_int* disposed;
+} lifecycle_race_arg_t;
+
+typedef struct {
+    taskforge_pool_t* pool;
+    bool graceful;
+    atomic_bool producer_started;
+    atomic_int attempts;
+    atomic_int executed;
+    atomic_int cleaned;
+    atomic_int disposed;
+    int shutdown_rc;
+    taskforge_future_t* futures[128];
+    size_t future_count;
+} submit_shutdown_race_t;
+
+static void lifecycle_race_cleanup(void* opaque) {
+    lifecycle_race_arg_t* arg = (lifecycle_race_arg_t*)opaque;
+    atomic_fetch_add(arg->cleaned, 1);
+    atomic_fetch_add(arg->disposed, 1);
+    free(arg);
+}
+
+static void* lifecycle_race_task(void* opaque) {
+    lifecycle_race_arg_t* arg = (lifecycle_race_arg_t*)opaque;
+    usleep(5000);
+    atomic_fetch_add(arg->executed, 1);
+    atomic_fetch_add(arg->disposed, 1);
+    free(arg);
+    return NULL;
+}
+
+static void* lifecycle_race_producer(void* opaque) {
+    submit_shutdown_race_t* race = (submit_shutdown_race_t*)opaque;
+    atomic_store(&race->producer_started, true);
+    for (int i = 0; i < 128; i++) {
+        lifecycle_race_arg_t* arg = malloc(sizeof(*arg));
+        assert(arg != NULL);
+        arg->executed = &race->executed;
+        arg->cleaned = &race->cleaned;
+        arg->disposed = &race->disposed;
+        taskforge_future_t* future = taskforge_submit_prio_with_cleanup(
+            race->pool, lifecycle_race_task, arg, TASKFORGE_PRIO_NORMAL,
+            lifecycle_race_cleanup);
+        if (future != NULL) {
+            assert(race->future_count < sizeof(race->futures) / sizeof(race->futures[0]));
+            race->futures[race->future_count++] = future;
+        }
+        atomic_fetch_add(&race->attempts, 1);
+    }
+    return NULL;
+}
+
+static void* lifecycle_race_shutdown(void* opaque) {
+    submit_shutdown_race_t* race = (submit_shutdown_race_t*)opaque;
+    while (!atomic_load(&race->producer_started) || atomic_load(&race->attempts) < 4) {
+        usleep(100);
+    }
+    /* Let the producer remain active while shutdown closes the admission gate. */
+    usleep(1000);
+    race->shutdown_rc = taskforge_pool_shutdown(race->pool, race->graceful);
+    return NULL;
+}
+
+static void run_submit_shutdown_race(bool graceful) {
+    taskforge_pool_config_t cfg;
+    taskforge_default_config(&cfg);
+    cfg.num_workers = 2;
+    cfg.queue_capacity = 8;
+    cfg.enable_work_stealing = !graceful;
+
+    submit_shutdown_race_t race = {0};
+    race.graceful = graceful;
+    atomic_init(&race.producer_started, false);
+    atomic_init(&race.attempts, 0);
+    atomic_init(&race.executed, 0);
+    atomic_init(&race.cleaned, 0);
+    atomic_init(&race.disposed, 0);
+    race.pool = taskforge_pool_create(&cfg);
+    assert(race.pool != NULL);
+
+    pthread_t producer, shutdown_thread;
+    assert(pthread_create(&shutdown_thread, NULL, lifecycle_race_shutdown, &race) == 0);
+    assert(pthread_create(&producer, NULL, lifecycle_race_producer, &race) == 0);
+    assert(pthread_join(producer, NULL) == 0);
+    assert(pthread_join(shutdown_thread, NULL) == 0);
+    assert(race.shutdown_rc == TASKFORGE_OK);
+    assert(atomic_load(&race.attempts) == 128);
+
+    for (size_t i = 0; i < race.future_count; i++) {
+        taskforge_status_t status = taskforge_future_wait(race.futures[i], NULL);
+        if (graceful) {
+            assert(status == TASKFORGE_OK);
+        } else if (status != TASKFORGE_OK) {
+            assert(status == TASKFORGE_ERR_FAILED);
+            assert(taskforge_future_get_error(race.futures[i]) == TASKFORGE_ERR_SHUTDOWN);
+        }
+        taskforge_future_release(race.futures[i]);
+    }
+
+    int attempts = atomic_load(&race.attempts);
+    int executed = atomic_load(&race.executed);
+    int cleaned = atomic_load(&race.cleaned);
+    assert(atomic_load(&race.disposed) == attempts);
+    assert(executed + cleaned == attempts);
+    if (graceful) {
+        assert(executed == (int)race.future_count);
+        assert(cleaned == attempts - (int)race.future_count);
+    } else {
+        assert(executed <= (int)race.future_count);
+        assert(cleaned >= attempts - (int)race.future_count);
+    }
+
+    taskforge_pool_destroy(race.pool);
+    printf("  [PASS] Concurrent %s shutdown and submission reached terminal futures with exactly-once argument disposal.\\n",
+           graceful ? "graceful" : "immediate");
+}
+
 int main(void) {
+    alarm(30);
     printf("[TEST] Running test_shutdown...\n");
 
     taskforge_pool_config_t cfg;
@@ -236,6 +360,10 @@ int main(void) {
 
     assert(atomic_load(&g_cleanup_calls) == cleanup_before_local + 3);
     printf("  [PASS] Immediate shutdown reclaimed global and worker-local prefetched arguments exactly once.\\n");
+
+    printf("  [Step] Testing concurrent submit/shutdown lifecycle races...\\n");
+    run_submit_shutdown_race(true);
+    run_submit_shutdown_race(false);
 
     printf("[PASS] test_shutdown completed successfully!\n\n");
     return 0;
