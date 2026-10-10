@@ -26,4 +26,4 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cppcheck
       - name: Run error-level analysis
-        run: cppcheck --enable=error --error-exitcode=1 --inline-suppr --suppress=missingIncludeSystem -D_GNU_SOURCE -I include src tests
+        run: cppcheck --error-exitcode=1 --inline-suppr --suppress=missingIncludeSystem -D_GNU_SOURCE -I include src tests
