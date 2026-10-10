@@ -210,8 +210,12 @@ static void* worker_loop(void* arg) {
                 found_task = true;
             }
         } else {
-            /* Standard global queue mode: block until task available or queue stopped */
-            if (!queue_pop(pool->queue, &task)) {
+            /*
+             * Global-queue workers also need periodic wake-ups to observe a
+             * resize retirement request. Keep queue_pop() blocking for its
+             * contract; worker internals use the timed variant for polling.
+             */
+            if (!queue_pop_timeout(pool->queue, &task, 50)) {
                 if (atomic_load(&pool->immediate_shutdown) ||
                     (atomic_load(&pool->shutdown_started) && queue_is_empty(pool->queue)) ||
                     worker_should_retire(self)) break;
