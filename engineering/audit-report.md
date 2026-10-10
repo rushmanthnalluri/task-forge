@@ -159,12 +159,12 @@ No dependency manifest or third-party package lockfile is present in the tracked
 | Area | Reviewed | Remaining work |
 |---|---|---|
 | Repository tree / tracked paths | Complete recursive tree; 44 files | Inspect every remaining file and git history before claiming full semantic coverage |
-| Pool lifecycle / resize / stats | Targeted source review | Verify mission branch via CI; expand concurrent shutdown/resize/stats tests |
-| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery and blocking/timed pop regressions added | All five gates passed on latest PR #8 head `c2aff127`; this documentation refresh needs revalidation |
+| Pool lifecycle / resize / stats | Source and resize regressions reviewed; lifecycle race test added on candidate branch | Exact-head CI pending for concurrent submit/immediate-shutdown and resize/shutdown coverage; destruction requires caller quiescence |
+| Queue / producer backpressure | Source + bounded-queue tests; concurrent timeout recovery and blocking/timed pop regressions added | Latest main run [38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) passed all five gates |
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
-| Map API | Source + tests; deterministic timeout, submission-failure, and inline-deadline regressions added | All five gates passed on latest PR #8 head `c2aff127`; inline timeout fix is merged |
+| Map API | Source + tests; deterministic timeout, submission-failure, and inline-deadline regressions added | Latest main run [38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) passed all five gates |
 | Parser / workload execution | Source + parser tests | More fuzz/property tests and resource-limit behavior |
-| IPC | Source + header + tests; multiline, invalid argument, path safety, version, timeout, and error-fallback regressions added | Verify combined mission-branch CI; server_stop remains path-unlink only by documented contract |
+| IPC | Source + header + tests; multiline, invalid argument, path safety, version, timeout, and error-fallback regressions added | Latest main run [38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) passed all five gates; server_stop remains path-unlink only by documented contract |
 | CLI | Entry point and command handling reviewed partially | Finish remaining command/signal/error-path review |
 | Logging | Source reviewed | I/O error propagation and performance implications |
 | Work stealing | Source reviewed | Model-based resize/shutdown interleavings |
@@ -179,8 +179,8 @@ GitHub Actions run [37963052958](https://github.com/rushmanthnalluri/task-forge/
 
 ## Mission update — 2026-10-10
 
-- **Current main:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` (merge commit for PR #10).
+- **Current main:** `e48ceca4187e8daf4395bccd97af3362901baa57` (PR #11 records reconciliation merge).
 - **PR #10:** [Global-queue worker retirement fix](https://github.com/rushmanthnalluri/task-forge/pull/10) merged at `2026-10-10T01:31:03Z`; candidate head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` passed all five required gates plus GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941).
-- **Post-merge main CI:** [run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) completed successfully at `2026-10-10T01:31:55Z`; build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, and one-million-task soak all passed on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
+- **Latest post-merge main CI:** [run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) completed successfully at `2026-10-10T01:34:48Z`; build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, and one-million-task soak all passed on `e48ceca4187e8daf4395bccd97af3362901baa57`.
 - **TF-RESIZE-003 — Idle global-queue worker does not observe retirement:** fixed in PR #10. Global-queue workers now use internal timed pop polling so idle workers notice retirement; public `queue_pop` remains blocking. Regression in `tests/test_resize.c` shrinks an idle two-worker non-work-stealing pool to one and regrows it, with a 15-second alarm. Exact-head CI and post-merge CI passed.
 - **Residual risks:** lifecycle interleavings involving concurrent submission and shutdown need more coverage; the fixed spare-worker capacity remains bounded; no license is declared (owner decision required); static analysis, dependency/security-alert scans beyond GitGuardian, and non-Ubuntu/platform compatibility remain unverified. No local commands were run because no local checkout is available.
