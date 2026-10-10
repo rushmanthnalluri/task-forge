@@ -26,13 +26,18 @@ typedef struct {
  * pointers or process-local addresses from a client. Arguments are text bytes:
  * embedded NUL, CR, and LF are rejected because requests use line framing.
  * Response results may contain newline characters. The requested socket path
- * must not already exist; stale paths must be removed explicitly by their owner. */
+ * must not already exist; stale paths must be removed explicitly by their owner.
+ * The internal handler name "__taskforge_stop__" is reserved and cannot be
+ * registered by applications. */
 int taskforge_ipc_server_run(const char* socket_path,
                              const taskforge_ipc_handler_t* handlers,
                              size_t handler_count,
                              uint32_t max_requests);
-/* Unlinks an existing socket pathname only. This does not terminate a server
- * process that is already listening; call only when the caller owns the path. */
+/* Requests an orderly stop from the active server at socket_path and waits
+ * for that server to close and remove its own socket inode. It never unlinks a
+ * replacement path. Returns 0 only when stop is acknowledged and the original
+ * socket pathname is gone or has been replaced; returns -1 when no compatible
+ * server is listening or shutdown cannot be confirmed. */
 int taskforge_ipc_server_stop(const char* socket_path);
 
 int taskforge_ipc_client_call(const char* socket_path,
