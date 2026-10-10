@@ -1,47 +1,36 @@
 # Mission state
 
-**Last confirmed execution:** 2026-10-09 23:02 IST  
+**Last verified state observation:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
 **Hard deadline:** 2026-10-10 12:50 IST (Asia/Kolkata)  
-**Time remaining at this update:** approximately 13 hours 48 minutes.
+**Repository:** https://github.com/rushmanthnalluri/task-forge
 
-## Repository and branches
+## Main and merged work
 
-- Repository: https://github.com/rushmanthnalluri/task-forge
-- Current `main`: `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`
-- Consolidated audit PR #5 merged; duplicate IPC PRs #3 and #6 closed as superseded.
-- Inline map timeout PR #7 merged as `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`.
-- Post-merge CI run [37966256429](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966256429) passed all five gates on main.
-- Current follow-up PR #8: https://github.com/rushmanthnalluri/task-forge/pull/8 on branch `fix/queue-pop-contract`.
-- Code/test and engineering-record head `c2aff127140d1ff85f26973457d1d9a04ef71409` passed all five gates in run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813). This state refresh advances the PR head and requires revalidation.
-- No local checkout is available; repository changes use the GitHub connector and validation uses observed GitHub Actions results.
+- Current `main`: `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` — [commit](https://github.com/rushmanthnalluri/task-forge/commit/98ac2418ffcd9a933da98c1aef8b8ff494c7fa28).
+- PR #5 consolidated hardening merged; PR #7 inline-map timeout merged; PR #8 public blocking queue-pop contract merged; PR #9 benchmark CSV failure handling merged; PR #10 idle global-queue worker retirement merged.
+- PR #10 head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` merged at `2026-10-10T01:31:03Z` as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
-## Latest verified work
+## Exact CI evidence
 
-- Worker resize/statistics lifetime and shutdown synchronization hardened.
-- Queue producer cancellation bookkeeping simplified to avoid allocation-dependent cancellation failure; strict FIFO producer fairness is not promised.
-- IPC framing, protocol validation, socket-path cleanup, text argument constraints, and shared monotonic response deadline hardened.
-- Map timeout reports preserve completed/canceled/unfinished states and earlier results on partial submission failure.
-- Worker-inline map timeout now checks a monotonic deadline between callbacks, preserves completed results, and does not start later callbacks after expiry; already-running callbacks cannot be interrupted.
-- Main `02feaf1dd269f77c1f0265155863f8f05ddeeb7f` passed all five gates after merge.
+- PR #10 exact-head run [38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941) completed successfully at `2026-10-10T01:30:53Z`: Build/tests/CLI PASS; ASan/UBSan PASS; TSan PASS; Valgrind Memcheck PASS; one-million-task soak PASS; GitGuardian Security Checks PASS.
+- Post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) completed successfully at `2026-10-10T01:31:55Z` on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`: Build/tests/CLI PASS; ASan/UBSan PASS; TSan PASS; Valgrind Memcheck PASS; one-million-task soak PASS.
+- PR #9 exact-head run [37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851) passed all five required gates before merge.
+- No local checkout is available; no local build/test commands were run. All pass claims above are from observed GitHub Actions statuses.
 
-## Current follow-up: queue pop contract
+## Latest fix
 
-The public `queue_pop` now blocks until work or shutdown. A separate `queue_pop_timeout` supports periodic polling in work-stealing workers. Regression tests cover timeout on an empty queue, blocking beyond 50 ms until a task is pushed, and shutdown waking a blocked pop. All five gates passed on PR #8 head `3e3ebe69`; this documentation refresh must be revalidated.
+Global-queue workers now use internal timed queue polling to observe resize retirement while the public `queue_pop` remains blocking. `tests/test_resize.c` covers idle shrink from two workers to one and regrowth to two, with a 15-second alarm. The exact PR head and post-merge main CI both passed.
 
-## Remaining risks and blockers
+## Next priorities and residual risks
 
-- **Open P2:** complete lifecycle coverage for concurrent submit/shutdown and clarify that all concurrent API callers must finish before destroy.
-- **Open P2:** no repository license is declared; owner choice is required before adding one.
-- **Open P3:** benchmark CSV failure reporting; static analysis; secret/dependency alert scans; cross-platform compatibility verification.
-- Local shell/build commands were not run because no local repository checkout is available.
-- The connected GitHub API did not expose secret/dependency/code-scanning alert endpoints; those scans remain unverified.
+1. **P2:** Expand concurrent submission/shutdown lifecycle tests, including queued accepted work, immediate/graceful shutdown, and resize interactions.
+2. **P2:** License is absent; add one only after the repository owner chooses the license.
+3. **P2/P3:** Run static analysis; review dependency/security-alert scanning beyond the passing GitGuardian workflow; test compatibility beyond the configured Ubuntu environment.
+4. **Design limitation:** Worker registry has bounded spare capacity (initial count +64); requests beyond that limit return invalid-argument status by design.
+5. `taskforge_ipc_server_stop` unlinks its socket path but does not terminate the listening server; that API contract is documented, not a true stop mechanism.
 
-## Next actions
+## Process constraints
 
-1. Wait for all five CI gates on the latest documentation-updated PR #8 head.
-2. If any gate fails, inspect logs, fix the root cause, and add regression coverage.
-3. Merge only after the exact latest head is green; verify post-merge CI.
-4. Continue with lifecycle race coverage, then the benchmark output failure.
-5. Near the deadline, stop starting new implementation work, update the five engineering records with final SHAs/checks/risks, and report honestly.
-
-An hourly continuation check is scheduled through the deadline. It must not push new commits while the current PR has CI queued or in progress.
+- No force pushes, destructive operations, branch-protection bypass, fabricated local results, or unverified CI claims.
+- Documentation-only changes must pass the same latest-head required CI gates before merge.
+- Hard stop: 2026-10-10 12:50 IST. Near the deadline, stop implementation and perform final read-only Git/PR/CI verification before reporting.
