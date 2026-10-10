@@ -9,7 +9,7 @@
 - Repository: https://github.com/rushmanthnalluri/task-forge
 - Current `main`: `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 - PR #9 (benchmark CSV failure handling) merged as `a4331f69082a0eb2564f2ec0e095e5672b8c0c81`; PR run [37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851) passed all five gates and post-merge main run [38013353830](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013353830) passed all five gates.
-- PR #10 (idle global-queue worker retirement during resize) merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28); PR run [38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941) passed all five gates and post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates.
+- PR #10 (idle global-queue worker retirement during resize) merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`); PR run [38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941) passed all five gates and post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates.
 - Latest open-PR listing at 2026-10-10 07:02 IST returned no open PRs.
 - No local checkout or local shell is available; verification relies on exact GitHub Actions head SHAs, run status, job status, and logs.
 
