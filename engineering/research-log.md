@@ -1,6 +1,6 @@
 # Research log
 
-**Latest verified CI completion:** 2026-10-10T02:00:08Z (2026-10-10 07:30:08 IST)
+**Latest verified CI completion:** 2026-10-10T02:03:01Z (2026-10-10 07:33:01 IST)
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -143,3 +143,11 @@
 - **Regression:** `tests/test_ipc_stop.c` starts an infinite server, performs a ping, stops it, joins the server thread, asserts the original path is gone, checks a regular file is preserved, and verifies the reserved handler name is rejected.
 - **Validation:** Exact-head [run 38015222571](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015222571) passed all five required gates plus GitGuardian; test output confirms all cases passed and Valgrind reported zero errors. Merged as `6873dc48033f3a80e3cd3d759f68f89ceaa8d6b7`; post-merge main [run 38015280093](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015280093) passed all five gates at 2026-10-10T02:00:08Z (2026-10-10 07:30:08 IST).
 - **Operational consideration:** Any process with write access to the socket can issue the stop control request; protect socket permissions. A stop may wait up to 35 seconds if the server is already handling a client with its 30-second read timeout.
+
+
+## R-018 — Establish a reproducible static-analysis baseline
+
+- **Question:** Can TaskForge run a low-noise static-analysis gate in GitHub Actions without depending on a local checkout?
+- **Candidate:** `.github/workflows/static-analysis.yml` installs cppcheck on Ubuntu and runs `cppcheck --enable=error --error-exitcode=1 --inline-suppr --suppress=missingIncludeSystem -D_GNU_SOURCE -I include src tests` for pushes to main, pull requests, and manual dispatch.
+- **Scope choice:** Begin with error-level findings only; inspect and fix concrete issues before broadening to warning/performance/portability categories. This avoids treating an unreviewed mass of style warnings as a reliable release gate.
+- **Current evidence:** Main `6d5c758620df1aaea6f67ffadfc74be1bf0e37fd` passed existing required CI in [run 38015464493](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015464493) at 2026-10-10T02:03:01Z (2026-10-10 07:33:01 IST). The new static-analysis workflow is candidate-only until its exact-head check has completed; no cppcheck result is yet claimed.

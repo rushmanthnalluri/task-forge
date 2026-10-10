@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Latest verified CI completion:** 2026-10-10T02:00:08Z (2026-10-10 07:30:08 IST)  
+**Latest verified CI completion:** 2026-10-10T02:03:01Z (2026-10-10 07:33:01 IST)  
 **Baseline branch:** `main`  
-**Latest verified main commit:** `6873dc48033f3a80e3cd3d759f68f89ceaa8d6b7`  
+**Latest verified main commit:** `6d5c758620df1aaea6f67ffadfc74be1bf0e37fd`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -209,3 +209,10 @@ GitHub Actions run [37963052958](https://github.com/rushmanthnalluri/task-forge/
 - **TF-IPC-STOP-001:** `taskforge_ipc_server_stop` now sends a reserved internal stop request over the live socket, receives an acknowledgement, and waits for the server to close and remove its own bound socket inode. The stop caller verifies inode identity before sending and never unlinks a replacement path. `tests/test_ipc_stop.c` verifies active server exit, regular-file preservation, and reserved-name rejection; logs show all discovered tests passed and Valgrind reported zero errors for this test.
 - **Security/operational note:** Any local process with write permission to the Unix socket can request stop; callers must protect socket permissions. Stop can wait up to 35 seconds while the server finishes an already accepted request (server-side read timeout is 30 seconds).
 - **Residual risks:** no license is declared; static analysis, dependency/security scans beyond GitGuardian, and non-Ubuntu compatibility remain unverified. No local commands were run.
+
+
+## Next verification layer — static analysis
+
+- **Baseline main:** `6d5c758620df1aaea6f67ffadfc74be1bf0e37fd`; post-merge [run 38015464493](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015464493) passed all five existing gates at 2026-10-10T02:03:01Z (2026-10-10 07:33:01 IST).
+- **STATIC-ANALYSIS-1:** Added a separate `.github/workflows/static-analysis.yml` candidate using cppcheck with error-level findings, `--error-exitcode=1`, inline suppressions, `_GNU_SOURCE`, and the project include path. The workflow has not yet run on an exact PR head; do not claim static analysis passed until its dedicated check completes.
+- **Residual risks:** static analysis and dependency/security alerts beyond GitGuardian remain unverified; no license is declared; non-Ubuntu compatibility remains unverified. No local commands were run.
