@@ -1,8 +1,8 @@
 # Engineering backlog
 
-**Latest verified CI completion:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST)  
+**Latest verified CI completion:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST)  
 **Deadline:** 2026-10-10 12:50 IST  
-**Latest green main head:** `d34b9de4546772e99928798def5f5c2d502fa291`; post-merge run [38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) passed all five gates.  
+**Latest green main head:** `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`; post-merge run [38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed all five gates.  
 **Queue-pop fix:** PR #8 merged; all five gates passed on its exact head and subsequent main CI passed. **Benchmark CSV fix:** PR #9 merged; exact-head and post-merge CI passed.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
@@ -23,7 +23,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 - [x] **MAP-2: Preserve per-item reports when a later submission fails.** Drain prior futures and populate their actual status, error, and result. Regression uses a one-worker/capacity-one pool with concurrent immediate shutdown.
 - [x] **MAP-3: Enforce timeout semantics for inline/nested map calls.** Worker-inline execution checks the monotonic deadline between callbacks, preserves completed results, and reports unstarted items as canceled. Regression verified by all five gates in run [37966033793](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966033793).
 - [x] **QUEUE-2: Make `queue_pop` semantics match its contract.** `queue_pop` blocks until work or shutdown; work-stealing workers use `queue_pop_timeout` for polling. Regression tests cover idle timeout, blocking wake-on-push, and shutdown wakeup. All five gates passed on PR #8 head `3e3ebe69` in [run 37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175).
-- [ ] **FUTURE-1: Expand cancellation race tests.** Cover cancellation before dequeue, the transition to RUNNING, and immediate shutdown with exactly-once cleanup.
+- [x] **FUTURE-1: Expand cancellation race tests.** PR #17 covers pending cancellation vs RUNNING, 200 scheduling trials, immediate shutdown, terminal states, and exactly-once argument disposal. Latest-head and post-merge main CI passed all five required gates.
 - [ ] **PARSER-1: Add parser property/fuzz coverage.** Malformed, huge, and boundary-valued specs must fail safely without integer overflow or unbounded unexpected allocation.
 - [ ] **LOG-1: Review logger I/O failure behavior.** Define what happens when write/flush fails and ensure logging failures cannot corrupt pool lifecycle.
 - [ ] **CLI-1: Finish review of all commands and signal/shutdown paths.** Verify documented commands, invalid/oversized input handling, and interrupt behavior.
@@ -40,7 +40,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 
 - Main `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` is green in [run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895).
 - PR #10 merged at `2026-10-10T01:31:03Z`; its exact head passed build/tests/CLI, ASan/UBSan, TSan, Valgrind, one-million-task soak, and GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941).
-- Next priority: **FUTURE-1** cancellation-transition races (before dequeue, transition to RUNNING, immediate shutdown), with exactly-once cleanup and terminal-state assertions. Do not claim unrun local tests.
+- Next priority: **IPC-STOP-1**: make `taskforge_ipc_server_stop` wake a server blocked in `accept()` without unlinking a replacement socket or caller-owned path. Define and test the stop protocol before implementation. Do not claim unrun local tests.
 - Remaining: cancellation-transition race coverage; fix implicit pthread declarations in `tests/test_map.c`; license owner decision; static analysis; dependency/security alert scans beyond GitGuardian; non-Ubuntu compatibility; bounded worker-capacity trade-off.
 
 ## Release gate
@@ -55,3 +55,8 @@ Before merge, the latest combined head must pass targeted tests, full `make test
 
 
 **Evidence timestamp:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST). Current-main verification is from GitHub Actions only; no local checkout was available.
+
+
+- [x] **TEST-PORT-1: Declare pthread APIs in map tests.** PR #18 adds `<pthread.h>`; exact-head and post-merge build logs no longer show implicit-declaration warnings. Run [38014763502](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014763502) and main [38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed required gates.
+
+**Evidence timestamp:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST).
