@@ -48,7 +48,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 Before merge, the latest combined head must pass targeted tests, full `make test`, build/CLI, ASan/UBSan, TSan, Valgrind, and the one-million-task soak. A green result on an earlier SHA is not a pass for a later code revision. Documentation-only edits still need a final CI run before merge.
 
 
-**Evidence timestamp:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST). The documentation revision itself is not yet CI-verified; do not merge its documentation PR until the exact latest head passes all required gates.
+**Evidence timestamp:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST). The documentation revision itself is not yet CI-verified; do not merge its documentation PR until the exact latest head passes all required gates.
 
 
 **Evidence timestamp:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST). Documentation-only changes require their own exact-head CI before merge.
