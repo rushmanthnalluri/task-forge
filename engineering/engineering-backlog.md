@@ -54,7 +54,7 @@ Before merge, the latest combined head must pass targeted tests, full `make test
 **Evidence timestamp:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST). Documentation-only changes require their own exact-head CI before merge.
 
 
-**Evidence timestamp:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST). Current-main verification is from GitHub Actions only; no local checkout was available.
+**Evidence timestamp:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST). Current-main verification is from GitHub Actions only; no local checkout was available.
 
 
 - [x] **TEST-PORT-1: Declare pthread APIs in map tests.** PR #18 adds `<pthread.h>`; exact-head and post-merge build logs no longer show implicit-declaration warnings. Run [38014763502](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014763502) and main [38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed required gates.
