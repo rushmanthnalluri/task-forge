@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdatomic.h>
+#include <pthread.h>
 #include <unistd.h>
 #include "taskforge/taskforge.h"
 
