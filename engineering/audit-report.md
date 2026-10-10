@@ -21,7 +21,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Resize can hang indefinitely for valid callback behavior.
 - **Remediation:** Make worker-count reads atomic and keep worker-local deque mutexes alive across resize cycles; destroy them only during pool destruction after workers are joined.
 - **Regression test:** `tests/test_resize_stress.c` now exercises worker callbacks querying count/stats while a shrink is joining.
-- **Status:** Implemented on combined PR #5; CI run [37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175) passed all five gates on head `3e3ebe6918d92ced72b0ea7914523bfd508b651c`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175) passed all five gates on head `3e3ebe6918d92ced72b0ea7914523bfd508b651c`; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 - **Commit:** `ce43a233a47d3ae9acf71b531b5257129764cb09` (source fix).
 
 ### TF-RESIZE-002 — Statistics race with worker resize/deque destruction
@@ -51,7 +51,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Multiline handler results were truncated/misframed and incompatible protocol versions could reach dispatch.
 - **Remediation:** Read the advertised body length exactly, validate the trailing delimiter and response header, enforce protocol version, validate handler names/entries, and use a shared monotonic deadline across the response header/body.
 - **Regression tests:** Multiline result round-trip; unsupported version against a registered handler; slow-trickle body must time out against one total deadline.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
 ### TF-IPC-002 — Unsafe socket-path deletion
 
@@ -60,7 +60,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** A caller-supplied regular file could be deleted, or a path not created by this server could be removed.
 - **Remediation:** Reject existing paths, do not unlink on bind failure, record the bound socket's device/inode and only clean up that same socket, and reject non-socket paths in the cleanup API.
 - **Regression test:** A pre-existing regular file remains byte-for-byte unchanged after attempted server start/stop.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
 ### TF-IPC-003 — Ambiguous request text was not rejected
 
@@ -69,7 +69,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Such input could be truncated or interpreted as protocol framing.
 - **Remediation:** Explicitly reject NUL/CR/LF request arguments before connecting; keep the supported v1 argument contract text-only. Response bodies are length-framed and can contain newlines.
 - **Regression test:** Client calls with NUL/CR/LF arguments fail before connecting.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
 ### TF-IPC-004 — Handler failure could be reported as success
 
@@ -78,7 +78,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Callers could mistake failed work for successful work.
 - **Remediation:** Normalize failure-with-zero-error to `TASKFORGE_ERR_FAILED` on both server and client paths.
 - **Regression test:** A handler that fails without setting an error code must return `TASKFORGE_ERR_FAILED`.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
 ### TF-IPC-005 — Server stop API does not stop the listener
 
@@ -94,7 +94,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Remediation:** Removed the heap-backed producer-ticket cancellation ledger. Producers now wait on queue capacity and shutdown predicates directly, so cancellation cannot lose a ticket due to `realloc` failure.
 - **Regression test:** Added 24 concurrent timed-out producers and verified the queue still accepts and drains later work.
 - **Trade-off:** producer wake-up order is scheduler-dependent; strict FIFO fairness is not promised. This is now stated in `include/taskforge/queue.h`.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
 ### TF-MAP-001 — Timed map per-item reports do not describe all canceled items
 - **Component:** `src/map.c`, `taskforge_map_timeout_report`
@@ -103,7 +103,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Callers cannot reliably distinguish timed-out, canceled, and failed items in the report.
 - **Remediation:** When the shared deadline expires, cancel the current item if it is still pending; for later items, record `CANCELLED` when cancellation succeeds or perform a zero-time terminal-state check so completed, failed, and still-running items are reported accurately. Running tasks are not forcibly interrupted.
 - **Regression test:** A one-worker pool runs a slow first item and leaves the second queued; the report must mark the first `TIMEOUT` and the second `CANCELLED`.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
 ### TF-MAP-002 — Submission failure leaves earlier map report entries at their default failure state
 
@@ -113,7 +113,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Callers received inaccurate per-item diagnostics and could lose successful result pointers in the report.
 - **Remediation:** Capture each earlier future's result/status/error while draining submitted work and update the report.
 - **Regression test:** A one-worker, capacity-one pool runs item 1, queues item 2, then concurrent immediate shutdown rejects item 3; the report must retain item 1's success and item 2's shutdown failure.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
 ### TF-MAP-003 — Inline map execution did not enforce the timeout
 
