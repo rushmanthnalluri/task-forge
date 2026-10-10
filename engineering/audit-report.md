@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Latest verified CI completion:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST)  
+**Latest verified CI completion:** 2026-10-10T02:00:08Z (2026-10-10 07:30:08 IST)  
 **Baseline branch:** `main`  
-**Latest verified main commit:** `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`  
+**Latest verified main commit:** `6873dc48033f3a80e3cd3d759f68f89ceaa8d6b7`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -200,3 +200,12 @@ GitHub Actions run [37963052958](https://github.com/rushmanthnalluri/task-forge/
 - **Failure diagnosis:** earlier head `9d55ecfd5e2992356a5b25ba9b2bd99a7ebe79b1` failed because the test assumed `CANCELLED` implied the asynchronous cleanup callback had already run; `test_futures` exposed the same assumption. The final revision waits for disposal/cleanup before asserting and passed the exact-head gates. Intermediate run [38014594307](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014594307) was cancelled when the branch advanced; it is not a validation result for the final head.
 - **PR #18 — test map declarations:** added `<pthread.h>` to `tests/test_map.c`; exact-head run [38014763502](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014763502) passed all five required gates plus GitGuardian, and the build log contains no implicit-declaration warnings for `pthread_create`/`pthread_join`. Merged as `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`; post-merge main [run 38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed all five gates.
 - **Next audit priority:** IPC server stop semantics; `taskforge_ipc_server_stop` currently unlinks the socket path but does not wake a server blocked in `accept()`. Keep the limitation explicit until a safe stop protocol and regression test are verified.
+
+
+## Mission update — active IPC server stop
+
+- **Current main:** `6873dc48033f3a80e3cd3d759f68f89ceaa8d6b7`; post-merge [run 38015280093](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015280093) completed successfully at `2026-10-10T02:00:08Z`, all five required gates passed.
+- **PR #20:** [Stop IPC server through its active socket](https://github.com/rushmanthnalluri/task-forge/pull/20), latest head `00570bffaa0c6ea8598abba0e362adff42b79a93`, merged at `2026-10-10T01:59:26Z` as `6873dc48033f3a80e3cd3d759f68f89ceaa8d6b7`. Exact-head run [38015222571](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015222571) passed all five required gates plus GitGuardian.
+- **TF-IPC-STOP-001:** `taskforge_ipc_server_stop` now sends a reserved internal stop request over the live socket, receives an acknowledgement, and waits for the server to close and remove its own bound socket inode. The stop caller verifies inode identity before sending and never unlinks a replacement path. `tests/test_ipc_stop.c` verifies active server exit, regular-file preservation, and reserved-name rejection; logs show all discovered tests passed and Valgrind reported zero errors for this test.
+- **Security/operational note:** Any local process with write permission to the Unix socket can request stop; callers must protect socket permissions. Stop can wait up to 35 seconds while the server finishes an already accepted request (server-side read timeout is 30 seconds).
+- **Residual risks:** no license is declared; static analysis, dependency/security scans beyond GitGuardian, and non-Ubuntu compatibility remain unverified. No local commands were run.

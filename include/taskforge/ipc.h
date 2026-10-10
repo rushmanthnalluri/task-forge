@@ -28,7 +28,7 @@ typedef struct {
  * Response results may contain newline characters. The requested socket path
  * must not already exist; stale paths must be removed explicitly by their owner.
  * The internal handler name "__taskforge_stop__" is reserved and cannot be
- * registered by applications. */
+ * registered by applications. Any local process with write permission on the\n * socket can request stop, so callers must protect the socket path permissions. */
 int taskforge_ipc_server_run(const char* socket_path,
                              const taskforge_ipc_handler_t* handlers,
                              size_t handler_count,
