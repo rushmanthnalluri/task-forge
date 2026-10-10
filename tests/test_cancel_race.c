@@ -164,6 +164,14 @@ static taskforge_future_t* submit_cancel_target(taskforge_pool_t* pool,
 static void assert_cancel_outcome(taskforge_future_t* future,
                                   cancel_target_state_t* state,
                                   bool cancel_result) {
+    /*
+     * CANCELLED is published synchronously by taskforge_future_cancel, while
+     * queued-task cleanup runs later when a worker dequeues the cancelled item.
+     */
+    for (int i = 0; i < 10000 && atomic_load(&state->disposed) == 0; i++) {
+        usleep(1000);
+    }
+    assert(atomic_load(&state->disposed) == 1);
     taskforge_status_t status = taskforge_future_wait(future, NULL);
     if (cancel_result) {
         assert(status == TASKFORGE_ERR_CANCELLED);
