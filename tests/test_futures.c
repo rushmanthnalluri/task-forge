@@ -12,6 +12,18 @@ static void cleanup_arg(void* arg) {
     atomic_fetch_add(&g_cleanup_calls, 1);
 }
 
+static void wait_for_cleanup_calls(int expected) {
+    /*
+     * A cancelled future becomes terminal before the worker dequeues it and
+     * invokes the cleanup callback, so future_wait alone is not a cleanup
+     * synchronization point.
+     */
+    for (int i = 0; i < 10000 && atomic_load(&g_cleanup_calls) < expected; i++) {
+        usleep(1000);
+    }
+    assert(atomic_load(&g_cleanup_calls) == expected);
+}
+
 static void* slow_task(void* arg) {
     int ms = (int)(intptr_t)arg;
     usleep(ms * 1000);
@@ -137,6 +149,7 @@ int main(void) {
     taskforge_future_release(cleanup_future);
     taskforge_future_wait(cleanup_blocker, NULL);
     taskforge_future_release(cleanup_blocker);
+    wait_for_cleanup_calls(3);
     assert(atomic_load(&g_cleanup_calls) == 3);
     printf("  [PASS] Cancelled queued task arguments were reclaimed by cleanup callback.\n");
 
