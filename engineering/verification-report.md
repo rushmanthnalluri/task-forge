@@ -1,15 +1,15 @@
 # Verification report
 
-**Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
+**Latest verified CI completion:** 2026-10-10T01:34:48Z (2026-10-10 07:04:48 IST)  
 **Mission deadline:** 2026-10-10 12:50 IST  
-**Current main:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`  
-**Post-merge evidence:** [GitHub Actions run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) — completed successfully on the exact current main SHA.
+**Current main:** `e48ceca4187e8daf4395bccd97af3362901baa57`  
+**Post-merge evidence:** [GitHub Actions run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) — all five gates passed on exact current main SHA `e48ceca4187e8daf4395bccd97af3362901baa57`.
 
-## Latest main verification — 98ac2418ffcd9a933da98c1aef8b8ff494c7fa28
+## Latest main verification — e48ceca4187e8daf4395bccd97af3362901baa57
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build, full tests, and CLI | **PASS** | [Run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
+| Build, full tests, and CLI | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
 | AddressSanitizer and UBSan | **PASS** | [Run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
 | ThreadSanitizer | **PASS** | [Run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
 | Valgrind Memcheck | **PASS** | [Run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
@@ -36,3 +36,11 @@
 - CI success proves only the configured jobs and Ubuntu environment exercised; it is not proof of absence of all defects.
 
 **Documentation revision status:** The five records are being refreshed on a documentation-only branch based on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`. This documentation revision is not yet CI-verified; do not merge it until the exact latest PR head passes the required gates.
+
+
+## Current candidate — lifecycle race coverage
+
+- Branch: `fix/lifecycle-race-coverage-2026-10-10` (PR not yet opened at the time of this record draft).
+- New test: `tests/test_lifecycle_races.c` exercises concurrent submit/immediate-shutdown and resize/shutdown, terminal future outcomes, and exactly-once argument disposal.
+- Public header now documents the racing-submit outcomes and the requirement to quiesce concurrent API callers before destroy.
+- Exact-head CI for this candidate: **PENDING**. No local build or test was run. Do not treat this as verified until all five required GitHub Actions gates pass on the exact PR head.
