@@ -1,9 +1,9 @@
 # Engineering backlog
 
-**Updated:** 2026-10-09 23:02 IST  
+**Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
 **Deadline:** 2026-10-10 12:50 IST  
-**Latest green main head:** `05da37cbfff65cd2967a8616eed6a31a1fffb613`; post-merge run [37967114988](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967114988) passed all five gates.  
-**Latest green queue-pop PR head:** `af64233d59ef3994eb5a99ecf7840e3939d6ab80`; run [37967008767](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967008767) passed all five gates. The benchmark follow-up branch has not yet been CI-verified.
+**Latest green main head:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`; post-merge run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates.  
+**Queue-pop fix:** PR #8 merged; all five gates passed on its exact head and subsequent main CI passed. **Benchmark CSV fix:** PR #9 merged; exact-head and post-merge CI passed.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
 
@@ -11,6 +11,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 
 - [x] **RESIZE-1: Remove callback deadlock during shrink.** Worker callbacks can query worker count/stats while a concurrent resize joins retiring workers. Regression: `tests/test_resize_stress.c`. Verified by CI.
 - [x] **RESIZE-2: Make stats safe during resize.** Use atomic operational worker count and retain initialized deques until pool destruction. TSan passed.
+- [x] **RESIZE-3: Let idle global-queue workers retire during shrink.** Use timed internal queue polling while preserving public `queue_pop`; regression covers idle shrink/regrow. PR #10 head passed all five gates plus GitGuardian, and post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates.
 - [x] **IPC-1: Harden protocol framing and validation.** Enforce protocol version, validate handler tables/headers, read length-framed responses exactly, and apply a shared monotonic response deadline. Text-only request arguments reject NUL/CR/LF.
 - [x] **IPC-2: Protect socket paths.** Reject pre-existing paths; cleanup only the socket inode created by this server; do not remove arbitrary files on bind failure.
 - [x] **QUEUE-1: Remove allocation-dependent producer cancellation bookkeeping.** Eliminates the realloc-failure path that could strand producers. Trade-off: strict FIFO producer fairness is not promised and is documented.
@@ -30,11 +31,21 @@ Status values: **Done** means implemented and verified at the cited revision; **
 ## P3 — maintainability, security, and developer experience
 
 - [ ] **DOCS-LICENSE-1: Resolve missing license declaration.** The repository has no `LICENSE` file. This requires the owner's license choice; do not add a license by inference. Once selected, add the canonical text and reference it from README.
-- [x] **BENCH-1: Fix false CSV-success reporting.** The benchmark now fails clearly if the CSV cannot be opened or written/closed; `tests/test_bench_output.sh` runs from a temporary directory without the output folder and verifies the nonzero status and actionable error. CI pending on `fix/benchmark-csv-error`.
+- [x] **BENCH-1: Fix false CSV-success reporting.** The benchmark fails clearly if CSV creation/writes/close fail; `tests/test_bench_output.sh` verifies nonzero status and actionable error. Merged via PR #9; exact-head CI and post-merge main CI passed.
 - [ ] **CI-1: Add a supported static-analysis pass.** Evaluate compiler diagnostics and clang-tidy/cppcheck availability before adding a tool.
 - [ ] **SEC-1: Run secret/dependency scanning appropriate to the repository.** No package manifest or lockfile is present; the connected GitHub API did not expose secret/dependency/code-scanning alert endpoints, so these scans remain unverified.
 - [ ] **DOCS-1: Reconcile README/design claims with verified behavior and supported platforms.** Keep benchmark claims reproducible and distinguish Linux-tested behavior from untested POSIX platforms.
 
+## Latest mission state (2026-10-10)
+
+- Main `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` is green in [run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895).
+- PR #10 merged at `2026-10-10T01:31:03Z`; its exact head passed build/tests/CLI, ASan/UBSan, TSan, Valgrind, one-million-task soak, and GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941).
+- Next priority: add focused concurrent submit/shutdown lifecycle regression coverage. Do not claim unrun local tests.
+- Remaining: license owner decision; static analysis; dependency/security alert scans beyond GitGuardian; non-Ubuntu compatibility; bounded worker-capacity trade-off.
+
 ## Release gate
 
 Before merge, the latest combined head must pass targeted tests, full `make test`, build/CLI, ASan/UBSan, TSan, Valgrind, and the one-million-task soak. A green result on an earlier SHA is not a pass for a later code revision. Documentation-only edits still need a final CI run before merge.
+
+
+**Evidence timestamp:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST). The documentation revision itself is not yet CI-verified; do not merge its documentation PR until the exact latest head passes all required gates.
