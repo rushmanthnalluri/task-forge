@@ -25,6 +25,7 @@ typedef struct {
 static int ping_handler(const char* argument, size_t argument_length,
                         char* result, size_t result_capacity,
                         int* error_code, void* context) {
+    (void)argument;
     (void)context;
     if (argument_length != 0 || result_capacity < sizeof("pong")) {
         if (error_code) *error_code = TASKFORGE_ERR_INVALID;
