@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
+**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)  
 **Baseline branch:** `main`  
-**Latest verified main commit:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`  
+**Latest verified main commit:** `08e67833e01695ea92dedd85a8a0644c74bfe320`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -150,7 +150,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 | Area | Reviewed | Remaining work |
 |---|---|---|
 | Repository tree / tracked paths | Complete recursive tree; 44 files | Inspect every remaining file and git history before claiming full semantic coverage |
-| Pool lifecycle / resize / stats | Targeted source review | Verify mission branch via CI; expand concurrent shutdown/resize/stats tests |
+| Pool lifecycle / resize / stats | Resize/stats, idle global-queue retirement, and submit/shutdown race regression reviewed | PR #13 exact-head and post-merge main CI passed; next add cancellation-transition race coverage |
 | Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery and blocking/timed pop regressions added | All five gates passed on latest PR #8 head `c2aff127`; this documentation refresh needs revalidation |
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
 | Map API | Source + tests; deterministic timeout, submission-failure, and inline-deadline regressions added | All five gates passed on latest PR #8 head `c2aff127`; inline timeout fix is merged |
@@ -175,3 +175,11 @@ GitHub Actions run [37963052958](https://github.com/rushmanthnalluri/task-forge/
 - **Post-merge main CI:** [run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) completed successfully at `2026-10-10T01:31:55Z`; build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, and one-million-task soak all passed on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 - **TF-RESIZE-003 — Idle global-queue worker does not observe retirement:** fixed in PR #10. Global-queue workers now use internal timed pop polling so idle workers notice retirement; public `queue_pop` remains blocking. Regression in `tests/test_resize.c` shrinks an idle two-worker non-work-stealing pool to one and regrows it, with a 15-second alarm. Exact-head CI and post-merge CI passed.
 - **Residual risks:** lifecycle interleavings involving concurrent submission and shutdown need more coverage; the fixed spare-worker capacity remains bounded; no license is declared (owner decision required); static analysis, dependency/security-alert scans beyond GitGuardian, and non-Ubuntu/platform compatibility remain unverified. No local commands were run because no local checkout is available.
+
+
+## Mission update — lifecycle race coverage
+
+- **Current main:** `08e67833e01695ea92dedd85a8a0644c74bfe320`; post-merge run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) completed successfully at `2026-10-10T01:37:57Z` with all five required gates passing.
+- **PR #13:** [Concurrent submission/shutdown regression](https://github.com/rushmanthnalluri/task-forge/pull/13), head `ad5dc7a6e9af5d538dba893f1bef86ca46d0d147`, merged at `2026-10-10T01:37:16Z` as `08e67833e01695ea92dedd85a8a0644c74bfe320`. Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, one-million-task soak, and GitGuardian.
+- **TF-LIFECYCLE-001 — submit/shutdown race coverage:** added in `tests/test_shutdown.c`. Concurrent producer and shutdown threads exercise graceful global-queue shutdown and immediate work-stealing shutdown; each accepted future must reach an allowed terminal state, and each submission argument must be executed or cleaned exactly once. A 30-second alarm bounds hangs. The test emitted explicit PASS lines in the observed build/test log; Valgrind reported zero errors for `test_shutdown`.
+- **Residual risks:** cancellation state-transition races remain open; the `tests/test_map.c` compile log still reports implicit declarations for `pthread_create`/`pthread_join` (missing `<pthread.h>` include); no license is declared; static analysis, dependency/security-alert scans beyond GitGuardian, and non-Ubuntu compatibility remain unverified. No local commands were run.
