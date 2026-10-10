@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 23:04 IST  
+**Last confirmed execution time:** 2026-10-10 07:02 IST (2026-10-10T01:32:00Z)  
 **Baseline branch:** `main`  
-**Baseline commit:** `05da37cbfff65cd2967a8616eed6a31a1fffb613`  
+**Baseline commit:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -31,8 +31,18 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Data race, undefined behavior, or a hang/crash during concurrent stats and resize.
 - **Remediation:** Derive worker count from the atomic operational-worker count. Retain initialized deques through shrink/re-growth and destroy them only after shutdown at pool destruction.
 - **Regression test:** Same resize/stats regression in `tests/test_resize_stress.c`.
-- **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Merged in the engineering-hardening series. Latest post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 - **Commit:** `ce43a233a47d3ae9acf71b531b5257129764cb09`.
+
+### TF-RESIZE-003 — Idle global-queue workers did not observe resize retirement
+
+- **Component:** `src/pool.c`, global-queue worker loop
+- **Severity/confidence:** P1 / high.
+- **Evidence:** After `queue_pop` was corrected to block until work or shutdown, a global-queue worker blocked indefinitely on an empty queue and could not observe its `retiring` flag. Shrinking an idle non-work-stealing pool could wait forever in `pthread_join`.
+- **Impact:** Pool resize-down could hang in the default global-queue configuration.
+- **Remediation:** Use `queue_pop_timeout` internally for global-queue workers, preserving the public blocking `queue_pop` contract while polling retirement every 50 ms.
+- **Regression:** `tests/test_resize.c` shrinks an idle two-worker non-work-stealing pool to one, grows it back to two, and sets a 15-second alarm as a hang guard.
+- **Status:** Merged via PR #10. All five gates passed on candidate head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941); post-merge main head `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` passed all five gates in [run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895).
 
 ### TF-IPC-001 — IPC response framing, protocol checks, and read deadlines
 
@@ -123,7 +133,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Direct callers could interpret a temporary idle interval as a stopped queue.
 - **Remediation:** Split the API: `queue_pop` now blocks until work or shutdown, while `queue_pop_timeout` is used by work-stealing workers for periodic local-deque polling.
 - **Regression tests:** Empty-queue timed pop returns on timeout without stopping the queue; blocking pop remains blocked beyond 50 ms, wakes on a pushed task, and returns false when an empty queue is shut down.
-- **Status:** Implemented on PR #8; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; this documentation refresh requires revalidation.
+- **Status:** Merged via PR #8. PR run [37967008767](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967008767) and post-merge main run [37967114988](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967114988) passed all five gates; latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) also passed all five gates.
 
 ### TF-DOC-001 — Repository has no license declaration
 
@@ -143,15 +153,15 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Automation and users may believe a benchmark artifact exists when it does not.
 - **Proposed remediation:** Return a nonzero status or clearly mark artifact output as skipped/failed when the CSV cannot be opened.
 - **Required regression test:** Run with an unwritable output directory and verify the process does not claim successful CSV output.
-- **Status:** Implemented on `fix/benchmark-csv-error`; failure-path regression added to `make test`; CI pending.
+- **Status:** Merged via PR #9 at `a4331f69082a0eb2564f2ec0e095e5672b8c0c81`. PR run [37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851) and post-merge main run [38013353830](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013353830) passed all five gates. The test is included in `make test`.
 
 ## Subsystem coverage ledger
 
 | Area | Reviewed | Remaining work |
 |---|---|---|
 | Repository tree / tracked paths | Complete recursive tree; 44 files | Inspect every remaining file and git history before claiming full semantic coverage |
-| Pool lifecycle / resize / stats | Targeted source review | Verify mission branch via CI; expand concurrent shutdown/resize/stats tests |
-| Queue / producer backpressure | Source + bounded-queue test; concurrent timeout recovery and blocking/timed pop regressions added | All five gates passed on latest PR #8 head `c2aff127`; this documentation refresh needs revalidation |
+| Pool lifecycle / resize / stats | Source, regression tests, PR #10 diff reviewed; CI green on main | Add concurrent submit/shutdown and resize/shutdown race coverage; destruction still requires callers to be quiescent |
+| Queue / producer backpressure | Source + bounded-queue tests; concurrent timeout recovery and blocking/timed pop regressions added | Latest main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates |
 | Futures / cancellation | Source + public API + tests | Audit ownership and cancellation under load |
 | Map API | Source + tests; deterministic timeout, submission-failure, and inline-deadline regressions added | All five gates passed on latest PR #8 head `c2aff127`; inline timeout fix is merged |
 | Parser / workload execution | Source + parser tests | More fuzz/property tests and resource-limit behavior |
@@ -160,7 +170,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 | Logging | Source reviewed | I/O error propagation and performance implications |
 | Work stealing | Source reviewed | Model-based resize/shutdown interleavings |
 | Build / CI | Makefile and workflow reviewed | Add dedicated static-analysis/security checks where justified |
-| Docs / benchmarks / scripts | README, design, validation scripts and benchmark code inspected | CSV failure path now reports nonzero with regression coverage; missing LICENSE still requires owner decision |
+| Docs / benchmarks / scripts | README, design, validation scripts and benchmark code inspected; benchmark CSV error path merged and verified | Missing LICENSE requires owner decision; continue reconciling documentation claims with verified behavior |
 | Dependency/security inventory | No manifest/lockfile found | Run compiler/static analyzer and secret scan in an executable environment |
 
 ## Baseline verification evidence
