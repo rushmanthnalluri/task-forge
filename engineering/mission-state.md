@@ -4,37 +4,31 @@
 **Hard deadline:** 2026-10-10 12:50 IST (Asia/Kolkata)  
 **Repository:** https://github.com/rushmanthnalluri/task-forge
 
-## Main and merged work
+## Current main and merged work
 
-- Current `main`: `08e67833e01695ea92dedd85a8a0644c74bfe320`.
-- PR #9 benchmark CSV failure handling merged as `a4331f69082a0eb2564f2ec0e095e5672b8c0c81`; exact-head run 37967278851 and post-merge run 38013353830 passed all five gates.
-- PR #10 idle global-queue worker retirement merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`; exact-head run 38013414941 and post-merge run 38013479895 passed all five gates.
-- PR #11 reconciled engineering records and merged as `e48ceca4187e8daf4395bccd97af3362901baa57`; post-merge main run 38013682260 passed all five gates.
-- PR #13 added concurrent submission vs graceful/immediate shutdown coverage and merged as `08e67833e01695ea92dedd85a8a0644c74bfe320`. Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) and post-merge main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five gates.
-- Duplicate documentation PR #12 was closed without merging after PR #11 covered the same five files.
-- Latest main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, and one-million-task soak on exact main head `08e67833e01695ea92dedd85a8a0644c74bfe320`.
-- Current open PR #14: `test: cover concurrent pool lifecycle races`. Its current head before narrowing duplicate coverage was `1479f675c35dafc9d54b725201356a65ae5dc2e5`, and all five gates passed in [run 38013902764](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013902764). That revision duplicated PR #13's submit/shutdown test; the branch is being narrowed to resize/shutdown coverage and will require a new full CI run.
-- No local checkout or local shell is available; use exact GitHub Actions evidence.
+- Current `main`: `08e67833e01695ea92dedd85a8a0644c74bfe320` — [commit](https://github.com/rushmanthnalluri/task-forge/commit/08e67833e01695ea92dedd85a8a0644c74bfe320).
+- PR #5 consolidated hardening, PR #7 inline-map timeout, PR #8 queue-pop contract, PR #9 benchmark CSV failure reporting, PR #10 global-queue retirement, PR #11 engineering-record reconciliation, and PR #13 submit/shutdown race coverage are merged.
+- PR #11 docs head `ac7d252dc4189c95f6774823f7536eb930919c0d` passed all five gates plus GitGuardian in [run 38013637179](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013637179); post-merge main run [38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) passed all five gates on `e48ceca4187e8daf4395bccd97af3362901baa57`.
+- Duplicate documentation PR #12 was closed as superseded after its exact-head run [38013669251](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013669251) passed the five required gates plus GitGuardian; its branch conflicted with the already-merged PR #11 and was not merged or deleted.
 
-## Current priority — resize/shutdown lifecycle race
+## Exact lifecycle verification
 
-- PR #13 now covers submit vs graceful/immediate shutdown, terminal future outcomes, and exactly-once argument disposal.
-- PR #14's revised `tests/test_lifecycle_races.c` focuses only on repeated resize requests racing with graceful shutdown, allows only `TASKFORGE_OK` or `TASKFORGE_ERR_SHUTDOWN`, and joins the resizer before pool destruction.
-- Public header clarifies that a racing submission may return NULL or a future failed with `TASKFORGE_ERR_SHUTDOWN`, and that callers must quiesce concurrent API threads before destroy.
-- Revised PR #14 exact-head CI is pending. Do not use the previous head's green CI as evidence for the revised head.
+- PR #13 head `ad5dc7a6e9af5d538dba893f1bef86ca46d0d147` merged at `2026-10-10T01:37:16Z` as `08e67833e01695ea92dedd85a8a0644c74bfe320`.
+- Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed Build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, one-million-task soak, and GitGuardian.
+- Post-merge main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) completed successfully at `2026-10-10T01:37:57Z`; all five required gates passed on `08e67833e01695ea92dedd85a8a0644c74bfe320`.
+- `tests/test_shutdown.c` now races concurrent submissions against graceful global-queue shutdown and immediate work-stealing shutdown. CI logs show both scenarios passing. Every accepted future reaches a terminal state, and argument disposal accounting asserts exactly once. Valgrind `test_shutdown` summary: zero errors.
+- No local checkout was available; no local commands were run. All pass claims come from observed GitHub Actions evidence.
 
-## Remaining risks and blockers
+## Next priority and residual risks
 
-- No repository license is declared; adding one requires the owner's explicit choice.
-- Cancellation transitions (before dequeue, transition to RUNNING, immediate shutdown) could use more explicit race coverage.
-- Parser property/fuzz tests, logger I/O failure behavior, complete CLI/signal review, static analysis, dependency/security-alert scanning beyond GitGuardian, and cross-platform builds remain incomplete or unverified.
-- No local commands were run. CI evidence applies to the configured Ubuntu workflow only.
-- The repository has no package manifest/lockfile; connected GitHub API access did not expose security-alert endpoints.
+1. **FUTURE-1:** Add cancellation-transition race tests covering cancellation before dequeue, the transition to RUNNING, and immediate shutdown; verify exactly-once cleanup and terminal states.
+2. **TEST-PORT-1:** Fix implicit declarations of `pthread_create` and `pthread_join` in `tests/test_map.c` by including `<pthread.h>`; warning observed in PR #13 build logs, not introduced by PR #13.
+3. **License:** No license is declared; repository owner choice is required before adding one.
+4. **Static/security/platform:** Static analysis, dependency/security-alert scans beyond the passing GitGuardian workflow, and non-Ubuntu compatibility remain unverified.
+5. **Design limitation:** Worker registry has bounded spare capacity (initial count +64). `taskforge_ipc_server_stop` unlinks the socket path but does not terminate a listener blocked in `accept()`; this limitation is documented.
 
-## Finalization plan
+## Process constraints
 
-1. Wait for the revised PR #14 head's five required gates.
-2. If a gate fails, inspect logs and make one focused fix with regression coverage, then wait for the new head's full gates.
-3. If all gates pass, review and merge through the normal PR flow, then verify the new main SHA and post-merge CI.
-4. Near the deadline, stop implementation and reconcile all five records with exact final Git/PR/CI state.
-5. Hard stop: 2026-10-10 12:50 IST. If a required gate is still running then, report it as pending/blocked rather than claiming completion.
+- No force pushes, destructive operations, branch-protection bypass, fabricated local results, or unverified CI claims.
+- Every new code revision must pass required gates on its exact latest head; verify post-merge main CI before starting the next issue.
+- Hard stop: 2026-10-10 12:50 IST. Near the deadline, stop implementation and perform final read-only Git/PR/CI verification before reporting.
