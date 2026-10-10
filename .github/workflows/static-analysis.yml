@@ -1,0 +1,29 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taskforge-static-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cppcheck:
+    name: Cppcheck error-level analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+      - name: Run error-level analysis
+        run: cppcheck --enable=error --error-exitcode=1 --inline-suppr --suppress=missingIncludeSystem -D_GNU_SOURCE -I include src tests
