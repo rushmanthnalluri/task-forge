@@ -1,6 +1,6 @@
 # Research log
 
-**Updated:** 2026-10-09 22:59 IST
+**Updated:** 2026-10-10 07:02 IST
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -94,3 +94,12 @@
 - **Decision:** Treat CSV creation, header/row writes, and close failures as benchmark failures. Keep the existing default output path and avoid adding a new dependency or CLI option.
 - **Regression:** `tests/test_bench_output.sh` runs the binary from a temporary directory without a `benchmarks/` folder and asserts a nonzero exit plus an actionable error. It is invoked by `make test`.
 - **Validation:** Regression added; CI pending on `fix/benchmark-csv-error`.
+
+
+## R-012 — Retirement polling for global-queue workers
+
+- **Question:** How can an idle worker observe a resize retirement request while preserving the public blocking queue-pop contract?
+- **Repository-specific evidence:** After `queue_pop` was made truly blocking, the non-work-stealing worker path blocked indefinitely on an empty global queue. A shrink operation sets the worker's retirement flag and joins it, but a blocked worker cannot observe the flag until the queue wakes.
+- **Decision:** Use `queue_pop_timeout(..., 50)` in the internal global-queue worker loop. Keep public `queue_pop` blocking; timed polling is an implementation detail for workers.
+- **Regression:** `tests/test_resize.c` shrinks an idle non-work-stealing pool from two workers to one, regrows it to two, and uses a 15-second alarm to catch a hang.
+- **Validation:** PR #10 head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` passed all five gates in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941). Post-merge main `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` passed all five gates in [run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895).
