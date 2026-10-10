@@ -105,10 +105,9 @@
 - **Validation:** PR #10 head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` passed all five required gates plus GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941); merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`. Post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five required gates at 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST).
 
 
-## R-013 — Resize/shutdown interleavings
+## R-013 — Submit/shutdown lifecycle interleavings and exactly-once argument disposal
 
-- **Question:** What outcomes are valid when a resize request races with pool shutdown?
-- **Repository-specific evidence:** Resize and shutdown serialize through `resize_mutex`. A resize already holding the mutex may complete before shutdown begins; a later resize should return `TASKFORGE_ERR_SHUTDOWN`. Idle global-queue workers now use timed internal polling so retirement can complete.
-- **Related verified coverage:** PR #13 added concurrent submission vs graceful/immediate shutdown tests to `tests/test_shutdown.c`; exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) and post-merge main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five gates.
-- **Regression:** `tests/test_lifecycle_races.c` repeatedly resizes an idle non-work-stealing pool while graceful shutdown starts, accepts only documented success/shutdown statuses, and joins the resize caller before destruction.
-- **Validation:** The narrowed PR #14 revision is pending exact-head CI; the previous head `1479f675c35dafc9d54b725201356a65ae5dc2e5` passed all five gates before the duplicate submission test was removed, so that earlier result does not validate the new revision.
+- **Question:** Do concurrent submissions racing graceful/immediate shutdown always leave accepted futures terminal and dispose each argument exactly once?
+- **Repository-specific evidence:** Existing shutdown tests covered submissions before shutdown, rejection after shutdown, graceful draining, and immediate cleanup, but did not force the producer and shutdown caller to overlap.
+- **Regression:** PR #13 adds concurrent producer/shutdown threads for graceful shutdown with the global queue and immediate shutdown with work stealing. It asserts 128 submission attempts, terminal states for all accepted futures, valid shutdown error codes, and `executed + cleaned == attempts` with `disposed == attempts`. A 30-second alarm bounds deadlocks.
+- **Validation:** Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed all five required gates plus GitGuardian; the build/test log shows both new race cases passing, and Valgrind reports zero errors for `test_shutdown`. Merged as `08e67833e01695ea92dedd85a8a0644c74bfe320`; post-merge main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five required gates at 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST).
