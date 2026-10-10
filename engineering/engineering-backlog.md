@@ -1,8 +1,8 @@
 # Engineering backlog
 
-**Latest verified CI completion:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST)  
+**Latest verified CI completion:** 2026-10-10T02:00:08Z (2026-10-10 07:30:08 IST)  
 **Deadline:** 2026-10-10 12:50 IST  
-**Latest green main head:** `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`; post-merge run [38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed all five gates.  
+**Latest green main head:** `6873dc48033f3a80e3cd3d759f68f89ceaa8d6b7`; post-merge run [38015280093](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015280093) passed all five gates.  
 **Queue-pop fix:** PR #8 merged; all five gates passed on its exact head and subsequent main CI passed. **Benchmark CSV fix:** PR #9 merged; exact-head and post-merge CI passed.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
@@ -40,7 +40,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 
 - Main `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` is green in [run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895).
 - PR #10 merged at `2026-10-10T01:31:03Z`; its exact head passed build/tests/CLI, ASan/UBSan, TSan, Valgrind, one-million-task soak, and GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941).
-- Next priority: **IPC-STOP-1**: make `taskforge_ipc_server_stop` wake a server blocked in `accept()` without unlinking a replacement socket or caller-owned path. Define and test the stop protocol before implementation. Do not claim unrun local tests.
+- Next priority: **STATIC-ANALYSIS-1**: add a reproducible static-analysis gate (start with cppcheck error-level findings), then diagnose any existing findings before broadening severity. Do not claim unrun local tests.
 - Remaining: cancellation-transition race coverage; fix implicit pthread declarations in `tests/test_map.c`; license owner decision; static analysis; dependency/security alert scans beyond GitGuardian; non-Ubuntu compatibility; bounded worker-capacity trade-off.
 
 ## Release gate
@@ -60,3 +60,8 @@ Before merge, the latest combined head must pass targeted tests, full `make test
 - [x] **TEST-PORT-1: Declare pthread APIs in map tests.** PR #18 adds `<pthread.h>`; exact-head and post-merge build logs no longer show implicit-declaration warnings. Run [38014763502](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014763502) and main [38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed required gates.
 
 **Evidence timestamp:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST).
+
+
+- [x] **IPC-STOP-1: Make IPC server stop terminate an active listener safely.** PR #20 implements an acknowledged reserved stop request, inode identity checks, and server-owned cleanup; tests cover live stop, regular-file preservation, and reserved-name rejection. Exact-head [run 38015222571](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015222571) and post-merge main [run 38015280093](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015280093) passed all required gates.
+
+**Evidence timestamp:** 2026-10-10T02:00:08Z (2026-10-10 07:30:08 IST).
