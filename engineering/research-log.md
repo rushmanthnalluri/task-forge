@@ -1,6 +1,6 @@
 # Research log
 
-**Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)
+**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -103,3 +103,11 @@
 - **Decision:** Use internal `queue_pop_timeout(..., 50)` polling for global-queue workers, preserving the public blocking `queue_pop` contract.
 - **Regression:** `tests/test_resize.c` creates a two-worker non-work-stealing pool, shrinks it while idle, then regrows it; an alarm guards against hangs.
 - **Validation:** PR #10 head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` passed all five required gates plus GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941); merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`. Post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five required gates at 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST).
+
+
+## R-013 — Submit/shutdown lifecycle interleavings and exactly-once argument disposal
+
+- **Question:** Do concurrent submissions racing graceful/immediate shutdown always leave accepted futures terminal and dispose each argument exactly once?
+- **Repository-specific evidence:** Existing shutdown tests covered submissions before shutdown, rejection after shutdown, graceful draining, and immediate cleanup, but did not force the producer and shutdown caller to overlap.
+- **Regression:** PR #13 adds concurrent producer/shutdown threads for graceful shutdown with the global queue and immediate shutdown with work stealing. It asserts 128 submission attempts, terminal states for all accepted futures, valid shutdown error codes, and `executed + cleaned == attempts` with `disposed == attempts`. A 30-second alarm bounds deadlocks.
+- **Validation:** Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed all five required gates plus GitGuardian; the build/test log shows both new race cases passing, and Valgrind reports zero errors for `test_shutdown`. Merged as `08e67833e01695ea92dedd85a8a0644c74bfe320`; post-merge main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five required gates at 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST).
