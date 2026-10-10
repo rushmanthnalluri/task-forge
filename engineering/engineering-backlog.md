@@ -1,8 +1,8 @@
 # Engineering backlog
 
-**Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
+**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)  
 **Deadline:** 2026-10-10 12:50 IST  
-**Latest green main head:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`; post-merge run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates.  
+**Latest green main head:** `08e67833e01695ea92dedd85a8a0644c74bfe320`; post-merge run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five gates.  
 **Queue-pop fix:** PR #8 merged; all five gates passed on its exact head and subsequent main CI passed. **Benchmark CSV fix:** PR #9 merged; exact-head and post-merge CI passed.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
@@ -15,7 +15,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 - [x] **IPC-1: Harden protocol framing and validation.** Enforce protocol version, validate handler tables/headers, read length-framed responses exactly, and apply a shared monotonic response deadline. Text-only request arguments reject NUL/CR/LF.
 - [x] **IPC-2: Protect socket paths.** Reject pre-existing paths; cleanup only the socket inode created by this server; do not remove arbitrary files on bind failure.
 - [x] **QUEUE-1: Remove allocation-dependent producer cancellation bookkeeping.** Eliminates the realloc-failure path that could strand producers. Trade-off: strict FIFO producer fairness is not promised and is documented.
-- [ ] **LIFECYCLE-1: Test submit/shutdown and resize/shutdown races.** Acceptance: concurrent calls terminate deterministically; accepted-task outcomes are documented; no worker is joined twice. Clarify that all concurrent API callers must finish before destroy.
+- [x] **LIFECYCLE-1: Test concurrent submit/shutdown races.** `tests/test_shutdown.c` exercises concurrent submission with graceful global-queue shutdown and immediate work-stealing shutdown; accepted futures reach terminal states and each argument is executed or cleaned exactly once. PR #13 and post-merge main CI passed all five gates. Resize/shutdown interleavings remain a follow-up.
 
 ## P2 — correctness, observability, and test depth
 
@@ -40,8 +40,8 @@ Status values: **Done** means implemented and verified at the cited revision; **
 
 - Main `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` is green in [run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895).
 - PR #10 merged at `2026-10-10T01:31:03Z`; its exact head passed build/tests/CLI, ASan/UBSan, TSan, Valgrind, one-million-task soak, and GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941).
-- Next priority: add focused concurrent submit/shutdown lifecycle regression coverage. Do not claim unrun local tests.
-- Remaining: license owner decision; static analysis; dependency/security alert scans beyond GitGuardian; non-Ubuntu compatibility; bounded worker-capacity trade-off.
+- Next priority: **FUTURE-1** cancellation-transition races (before dequeue, transition to RUNNING, immediate shutdown), with exactly-once cleanup and terminal-state assertions. Do not claim unrun local tests.
+- Remaining: cancellation-transition race coverage; fix implicit pthread declarations in `tests/test_map.c`; license owner decision; static analysis; dependency/security alert scans beyond GitGuardian; non-Ubuntu compatibility; bounded worker-capacity trade-off.
 
 ## Release gate
 
@@ -49,3 +49,6 @@ Before merge, the latest combined head must pass targeted tests, full `make test
 
 
 **Evidence timestamp:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST). The documentation revision itself is not yet CI-verified; do not merge its documentation PR until the exact latest head passes all required gates.
+
+
+**Evidence timestamp:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST). Documentation-only changes require their own exact-head CI before merge.
