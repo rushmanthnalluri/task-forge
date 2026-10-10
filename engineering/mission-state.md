@@ -1,36 +1,34 @@
 # Mission state
 
-**Last verified state observation:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
+**Last verified state observation:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)  
 **Hard deadline:** 2026-10-10 12:50 IST (Asia/Kolkata)  
 **Repository:** https://github.com/rushmanthnalluri/task-forge
 
-## Main and merged work
+## Current main and merged work
 
-- Current `main`: `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` — [commit](https://github.com/rushmanthnalluri/task-forge/commit/98ac2418ffcd9a933da98c1aef8b8ff494c7fa28).
-- PR #5 consolidated hardening merged; PR #7 inline-map timeout merged; PR #8 public blocking queue-pop contract merged; PR #9 benchmark CSV failure handling merged; PR #10 idle global-queue worker retirement merged.
-- PR #10 head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` merged at `2026-10-10T01:31:03Z` as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
+- Current `main`: `08e67833e01695ea92dedd85a8a0644c74bfe320` — [commit](https://github.com/rushmanthnalluri/task-forge/commit/08e67833e01695ea92dedd85a8a0644c74bfe320).
+- PR #5 consolidated hardening, PR #7 inline-map timeout, PR #8 queue-pop contract, PR #9 benchmark CSV failure reporting, PR #10 global-queue retirement, PR #11 engineering-record reconciliation, and PR #13 submit/shutdown race coverage are merged.
+- PR #11 docs head `ac7d252dc4189c95f6774823f7536eb930919c0d` passed all five gates plus GitGuardian in [run 38013637179](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013637179); post-merge main run [38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) passed all five gates on `e48ceca4187e8daf4395bccd97af3362901baa57`.
+- Duplicate documentation PR #12 was closed as superseded after its exact-head run [38013669251](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013669251) passed the five required gates plus GitGuardian; its branch conflicted with the already-merged PR #11 and was not merged or deleted.
 
-## Exact CI evidence
+## Exact lifecycle verification
 
-- PR #10 exact-head run [38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941) completed successfully at `2026-10-10T01:30:53Z`: Build/tests/CLI PASS; ASan/UBSan PASS; TSan PASS; Valgrind Memcheck PASS; one-million-task soak PASS; GitGuardian Security Checks PASS.
-- Post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) completed successfully at `2026-10-10T01:31:55Z` on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`: Build/tests/CLI PASS; ASan/UBSan PASS; TSan PASS; Valgrind Memcheck PASS; one-million-task soak PASS.
-- PR #9 exact-head run [37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851) passed all five required gates before merge.
-- No local checkout is available; no local build/test commands were run. All pass claims above are from observed GitHub Actions statuses.
+- PR #13 head `ad5dc7a6e9af5d538dba893f1bef86ca46d0d147` merged at `2026-10-10T01:37:16Z` as `08e67833e01695ea92dedd85a8a0644c74bfe320`.
+- Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed Build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, one-million-task soak, and GitGuardian.
+- Post-merge main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) completed successfully at `2026-10-10T01:37:57Z`; all five required gates passed on `08e67833e01695ea92dedd85a8a0644c74bfe320`.
+- `tests/test_shutdown.c` now races concurrent submissions against graceful global-queue shutdown and immediate work-stealing shutdown. CI logs show both scenarios passing. Every accepted future reaches a terminal state, and argument disposal accounting asserts exactly once. Valgrind `test_shutdown` summary: zero errors.
+- No local checkout was available; no local commands were run. All pass claims come from observed GitHub Actions evidence.
 
-## Latest fix
+## Next priority and residual risks
 
-Global-queue workers now use internal timed queue polling to observe resize retirement while the public `queue_pop` remains blocking. `tests/test_resize.c` covers idle shrink from two workers to one and regrowth to two, with a 15-second alarm. The exact PR head and post-merge main CI both passed.
-
-## Next priorities and residual risks
-
-1. **P2:** Expand concurrent submission/shutdown lifecycle tests, including queued accepted work, immediate/graceful shutdown, and resize interactions.
-2. **P2:** License is absent; add one only after the repository owner chooses the license.
-3. **P2/P3:** Run static analysis; review dependency/security-alert scanning beyond the passing GitGuardian workflow; test compatibility beyond the configured Ubuntu environment.
-4. **Design limitation:** Worker registry has bounded spare capacity (initial count +64); requests beyond that limit return invalid-argument status by design.
-5. `taskforge_ipc_server_stop` unlinks its socket path but does not terminate the listening server; that API contract is documented, not a true stop mechanism.
+1. **FUTURE-1:** Add cancellation-transition race tests covering cancellation before dequeue, the transition to RUNNING, and immediate shutdown; verify exactly-once cleanup and terminal states.
+2. **TEST-PORT-1:** Fix implicit declarations of `pthread_create` and `pthread_join` in `tests/test_map.c` by including `<pthread.h>`; warning observed in PR #13 build logs, not introduced by PR #13.
+3. **License:** No license is declared; repository owner choice is required before adding one.
+4. **Static/security/platform:** Static analysis, dependency/security-alert scans beyond the passing GitGuardian workflow, and non-Ubuntu compatibility remain unverified.
+5. **Design limitation:** Worker registry has bounded spare capacity (initial count +64). `taskforge_ipc_server_stop` unlinks the socket path but does not terminate a listener blocked in `accept()`; this limitation is documented.
 
 ## Process constraints
 
 - No force pushes, destructive operations, branch-protection bypass, fabricated local results, or unverified CI claims.
-- Documentation-only changes must pass the same latest-head required CI gates before merge.
+- Every new code revision must pass required gates on its exact latest head; verify post-merge main CI before starting the next issue.
 - Hard stop: 2026-10-10 12:50 IST. Near the deadline, stop implementation and perform final read-only Git/PR/CI verification before reporting.
