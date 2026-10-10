@@ -1,36 +1,48 @@
 # Mission state
 
-**Last verified state observation:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
+**Last verified state observation:** 2026-10-10T01:34:48Z (2026-10-10 07:04:48 IST)  
 **Hard deadline:** 2026-10-10 12:50 IST (Asia/Kolkata)  
 **Repository:** https://github.com/rushmanthnalluri/task-forge
 
 ## Main and merged work
 
-- Current `main`: `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28` — [commit](https://github.com/rushmanthnalluri/task-forge/commit/98ac2418ffcd9a933da98c1aef8b8ff494c7fa28).
-- PR #5 consolidated hardening merged; PR #7 inline-map timeout merged; PR #8 public blocking queue-pop contract merged; PR #9 benchmark CSV failure handling merged; PR #10 idle global-queue worker retirement merged.
-- PR #10 head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` merged at `2026-10-10T01:31:03Z` as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
+- Current `main`: `e48ceca4187e8daf4395bccd97af3362901baa57`.
+- PR #9 benchmark CSV failure handling merged as `a4331f69082a0eb2564f2ec0e095e5672b8c0c81`; exact-head run 37967278851 and post-merge run 38013353830 passed all five gates.
+- PR #10 idle global-queue worker retirement merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`; exact-head run 38013414941 and post-merge run 38013479895 passed all five gates.
+- PR #11 reconciled the five engineering records and merged as `e48ceca4187e8daf4395bccd97af3362901baa57`. Post-merge main run [38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) passed all five required gates.
+- Duplicate documentation PR #12 was closed without merging after PR #11 was found to cover the same five files and had passed its checks.
+- Latest open-PR listing before starting lifecycle work returned no open PRs. Current candidate branch: `fix/lifecycle-race-coverage-2026-10-10`; new regression and contract documentation have been added but are not yet CI-verified.
+- No local checkout or local shell is available; use exact GitHub Actions head/run/job evidence.
 
-## Exact CI evidence
+## Verified engineering improvements
 
-- PR #10 exact-head run [38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941) completed successfully at `2026-10-10T01:30:53Z`: Build/tests/CLI PASS; ASan/UBSan PASS; TSan PASS; Valgrind Memcheck PASS; one-million-task soak PASS; GitGuardian Security Checks PASS.
-- Post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) completed successfully at `2026-10-10T01:31:55Z` on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`: Build/tests/CLI PASS; ASan/UBSan PASS; TSan PASS; Valgrind Memcheck PASS; one-million-task soak PASS.
-- PR #9 exact-head run [37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851) passed all five required gates before merge.
-- No local checkout is available; no local build/test commands were run. All pass claims above are from observed GitHub Actions statuses.
+- Worker callback deadlock and worker-count/statistics lifetime races during resize are addressed with regression coverage.
+- Queue producer cancellation bookkeeping no longer depends on a heap-backed cancellation ledger; strict FIFO producer fairness is not promised.
+- IPC framing, protocol version validation, socket-path safety, ambiguous text rejection, error fallback, and monotonic response deadlines are hardened.
+- Map timeout reports preserve terminal statuses/results on timeout and partial submission failure; worker-inline map calls honor deadlines between callbacks.
+- Public `queue_pop` remains blocking; `queue_pop_timeout` supports worker polling.
+- Idle global-queue workers use timed internal polling to observe retirement flags during resize.
+- Benchmark CSV creation/write/close failures return nonzero with an actionable diagnostic; regression is part of `make test`.
+- Latest main `e48ceca4187e8daf4395bccd97af3362901baa57` passed all five gates in run 38013682260.
 
-## Latest fix
+## Current candidate — lifecycle races
 
-Global-queue workers now use internal timed queue polling to observe resize retirement while the public `queue_pop` remains blocking. `tests/test_resize.c` covers idle shrink from two workers to one and regrowth to two, with a 15-second alarm. The exact PR head and post-merge main CI both passed.
+- Added `tests/test_lifecycle_races.c`: races 500 submission attempts against immediate shutdown; every returned future must reach a valid terminal state, shutdown-failed futures must expose `TASKFORGE_ERR_SHUTDOWN`, and every argument must be disposed exactly once.
+- Added a resize/shutdown race: concurrent resize calls may return `TASKFORGE_OK` or `TASKFORGE_ERR_SHUTDOWN`; no other status is accepted.
+- Added API documentation that immediate shutdown can fail queued futures and that all concurrent API callers must finish before pool destruction.
+- Candidate branch `fix/lifecycle-race-coverage-2026-10-10`; exact-head CI pending. Do not claim the new regression passed until observed on GitHub Actions.
 
-## Next priorities and residual risks
+## Remaining risks and blockers
 
-1. **P2:** Expand concurrent submission/shutdown lifecycle tests, including queued accepted work, immediate/graceful shutdown, and resize interactions.
-2. **P2:** License is absent; add one only after the repository owner chooses the license.
-3. **P2/P3:** Run static analysis; review dependency/security-alert scanning beyond the passing GitGuardian workflow; test compatibility beyond the configured Ubuntu environment.
-4. **Design limitation:** Worker registry has bounded spare capacity (initial count +64); requests beyond that limit return invalid-argument status by design.
-5. `taskforge_ipc_server_stop` unlinks its socket path but does not terminate the listening server; that API contract is documented, not a true stop mechanism.
+- No repository license is declared; adding one requires the owner's explicit choice.
+- Cancellation transitions (before dequeue, transition to RUNNING, immediate shutdown) could use more explicit race coverage.
+- Parser property/fuzz tests, logger I/O failure behavior, complete CLI/signal review, static analysis, secret/dependency scanning beyond GitGuardian, and cross-platform builds remain incomplete or unverified.
+- No local commands were run. CI evidence applies to the configured Ubuntu workflow only.
+- The repository has no package manifest/lockfile; connected GitHub API access did not expose security-alert endpoints.
 
-## Process constraints
+## Finalization plan
 
-- No force pushes, destructive operations, branch-protection bypass, fabricated local results, or unverified CI claims.
-- Documentation-only changes must pass the same latest-head required CI gates before merge.
-- Hard stop: 2026-10-10 12:50 IST. Near the deadline, stop implementation and perform final read-only Git/PR/CI verification before reporting.
+1. Open a PR for the lifecycle race tests/docs and wait for all required gates on its exact latest head.
+2. If a gate fails, inspect logs and make one focused fix with regression coverage, then wait for the new head's full gates.
+3. After merge, verify the main SHA and post-merge CI, then reconcile the five records with final evidence.
+4. Hard stop: 2026-10-10 12:50 IST. If a required gate is still running then, report it as pending/blocked rather than claiming completion.
