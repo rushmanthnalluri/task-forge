@@ -1,6 +1,6 @@
 # Research log
 
-**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)
+**Latest verified CI completion:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST)
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -111,3 +111,11 @@
 - **Repository-specific evidence:** Existing shutdown tests covered submissions before shutdown, rejection after shutdown, graceful draining, and immediate cleanup, but did not force the producer and shutdown caller to overlap.
 - **Regression:** PR #13 adds concurrent producer/shutdown threads for graceful shutdown with the global queue and immediate shutdown with work stealing. It asserts 128 submission attempts, terminal states for all accepted futures, valid shutdown error codes, and `executed + cleaned == attempts` with `disposed == attempts`. A 30-second alarm bounds deadlocks.
 - **Validation:** Exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed all five required gates plus GitGuardian; the build/test log shows both new race cases passing, and Valgrind reports zero errors for `test_shutdown`. Merged as `08e67833e01695ea92dedd85a8a0644c74bfe320`; post-merge main run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five required gates at 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST).
+
+
+## R-014 — Resize/shutdown serialization under repeated resize calls
+
+- **Question:** Can a resizer racing graceful shutdown return undocumented statuses, hang, or outlive the pool?
+- **Repository-specific evidence:** `taskforge_pool_resize` and `taskforge_pool_shutdown` serialize through `resize_mutex`; resize requests after shutdown begins should return `TASKFORGE_ERR_SHUTDOWN`, while a resize already in progress may complete.
+- **Regression:** PR #14 adds `tests/test_lifecycle_races.c`, repeatedly cycles worker counts from 1 to 4 while the main thread begins graceful shutdown. It accepts only `TASKFORGE_OK`/`TASKFORGE_ERR_SHUTDOWN`, requires at least ten resize attempts, uses a 15-second alarm, and joins the resizer before pool destruction.
+- **Validation:** Exact-head run [38014144625](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014144625) passed all five required gates plus GitGuardian; test log explicitly reports concurrent resize/shutdown PASS. Merged as `d34b9de4546772e99928798def5f5c2d502fa291`; post-merge main run [38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) passed all five gates at 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST).
