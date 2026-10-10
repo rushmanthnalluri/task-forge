@@ -81,7 +81,7 @@ static void* resize_until_stopped(void* raw) {
         }
         atomic_fetch_add(&race->iterations, 1);
         target = target == 4 ? 1 : target + 1;
-        sched_yield();
+        usleep(500);
     }
     return NULL;
 }
