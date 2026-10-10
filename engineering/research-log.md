@@ -1,6 +1,6 @@
 # Research log
 
-**Latest verified CI completion:** 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST)
+**Latest verified CI completion:** 2026-10-10T02:00:08Z (2026-10-10 07:30:08 IST)
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -132,3 +132,14 @@
 - **Observation:** CI emitted implicit declaration warnings for `pthread_create` and `pthread_join` in `tests/test_map.c`.
 - **Fix:** PR #18 adds `<pthread.h>` to the test source.
 - **Validation:** Exact-head [run 38014763502](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014763502) passed all five required gates plus GitGuardian; its build log had no implicit pthread declaration warnings. Merged as `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`; post-merge run [38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed all five required gates at 2026-10-10T01:52:43Z (2026-10-10 07:22:43 IST).
+
+
+## R-017 — IPC stop must wake the live listener without unlinking replacement paths
+
+- **Question:** Does `taskforge_ipc_server_stop` stop a server blocked in `accept()` and preserve filesystem path ownership?
+- **Prior behavior:** It only unlinked the pathname; the listening file descriptor and blocked server loop remained active.
+- **Decision:** Reserve internal request name `__taskforge_stop__`; reject applications registering that name. The active server acknowledges the empty control request, closes the client, exits the accept loop, closes the listener, and unlinks only the inode it originally bound.
+- **Client safeguards:** `server_stop` captures the socket inode, connects, verifies the pathname still identifies that inode before sending, validates the acknowledgement, and waits until the original path is absent or replaced. It never unlinks a replacement socket.
+- **Regression:** `tests/test_ipc_stop.c` starts an infinite server, performs a ping, stops it, joins the server thread, asserts the original path is gone, checks a regular file is preserved, and verifies the reserved handler name is rejected.
+- **Validation:** Exact-head [run 38015222571](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015222571) passed all five required gates plus GitGuardian; test output confirms all cases passed and Valgrind reported zero errors. Merged as `6873dc48033f3a80e3cd3d759f68f89ceaa8d6b7`; post-merge main [run 38015280093](https://github.com/rushmanthnalluri/task-forge/actions/runs/38015280093) passed all five gates at 2026-10-10T02:00:08Z (2026-10-10 07:30:08 IST).
+- **Operational consideration:** Any process with write access to the socket can issue the stop control request; protect socket permissions. A stop may wait up to 35 seconds if the server is already handling a client with its 30-second read timeout.
