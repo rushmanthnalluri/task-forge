@@ -3,7 +3,7 @@
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
 **Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
 **Baseline branch:** `main`  
-**Latest verified main commit:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`  
+**Latest verified main commit:** `e48ceca4187e8daf4395bccd97af3362901baa57`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -33,6 +33,15 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Regression test:** Same resize/stats regression in `tests/test_resize_stress.c`.
 - **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; the subsequent post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 - **Commit:** `ce43a233a47d3ae9acf71b531b5257129764cb09`.
+
+### TF-LIFECYCLE-001 — Concurrent submit/shutdown and resize/shutdown coverage gap
+
+- **Component:** `src/pool.c`, pool lifecycle API, and `tests/test_lifecycle_races.c`
+- **Severity/confidence:** P2 / high-confidence test-coverage gap.
+- **Evidence:** Existing tests separately cover submission before/after shutdown, graceful drain, immediate queued-task cleanup, and resize concurrency, but do not force submission to race immediate shutdown or resize to race shutdown.
+- **Risk:** Future changes could strand a returned future, double-run argument cleanup, produce an unexpected resize status, or make shutdown/resize hang without a targeted interleaving regression.
+- **Coverage added:** Concurrent submit/immediate-shutdown test checks terminal future state/error and exactly-once argument disposal across 500 attempts. Concurrent resize/shutdown test checks only documented success/shutdown statuses. A 15-second alarm guards hangs. The test joins concurrent callers before pool destruction.
+- **Status:** Added on `fix/lifecycle-race-coverage-2026-10-10`; exact-head CI is pending.
 
 ### TF-IPC-001 — IPC response framing, protocol checks, and read deadlines
 
