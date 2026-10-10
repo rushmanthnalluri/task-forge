@@ -1,8 +1,8 @@
 # Engineering backlog
 
-**Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
+**Latest verified CI completion:** 2026-10-10T01:34:48Z (2026-10-10 07:04:48 IST)  
 **Deadline:** 2026-10-10 12:50 IST  
-**Latest green main head:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`; post-merge run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates.  
+**Latest green main head:** `e48ceca4187e8daf4395bccd97af3362901baa57`; post-merge run [38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) passed all five gates.  
 **Queue-pop fix:** PR #8 merged; all five gates passed on its exact head and subsequent main CI passed. **Benchmark CSV fix:** PR #9 merged; exact-head and post-merge CI passed.
 
 Status values: **Done** means implemented and verified at the cited revision; **Open** means not implemented; **Blocked** means unable to verify with available tools.
@@ -15,7 +15,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 - [x] **IPC-1: Harden protocol framing and validation.** Enforce protocol version, validate handler tables/headers, read length-framed responses exactly, and apply a shared monotonic response deadline. Text-only request arguments reject NUL/CR/LF.
 - [x] **IPC-2: Protect socket paths.** Reject pre-existing paths; cleanup only the socket inode created by this server; do not remove arbitrary files on bind failure.
 - [x] **QUEUE-1: Remove allocation-dependent producer cancellation bookkeeping.** Eliminates the realloc-failure path that could strand producers. Trade-off: strict FIFO producer fairness is not promised and is documented.
-- [ ] **LIFECYCLE-1: Test submit/shutdown and resize/shutdown races.** Acceptance: concurrent calls terminate deterministically; accepted-task outcomes are documented; no worker is joined twice. Clarify that all concurrent API callers must finish before destroy.
+- [ ] **LIFECYCLE-1: Test submit/shutdown and resize/shutdown races.** Regression added in `tests/test_lifecycle_races.c`: 500 concurrent submit attempts racing immediate shutdown, terminal future/error checks, exactly-once argument disposal, and concurrent resize/shutdown. Candidate branch `fix/lifecycle-race-coverage-2026-10-10`; exact-head CI pending. Pool destruction remains after caller quiescence.
 
 ## P2 — correctness, observability, and test depth
 
