@@ -3,7 +3,7 @@
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
 **Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
 **Baseline branch:** `main`  
-**Baseline commit:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`  
+**Latest verified main commit:** `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
