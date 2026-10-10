@@ -1,6 +1,6 @@
 # Research log
 
-**Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)
+**Latest verified CI completion:** 2026-10-10T01:34:48Z (2026-10-10 07:04:48 IST)
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -103,3 +103,12 @@
 - **Decision:** Use internal `queue_pop_timeout(..., 50)` polling for global-queue workers, preserving the public blocking `queue_pop` contract.
 - **Regression:** `tests/test_resize.c` creates a two-worker non-work-stealing pool, shrinks it while idle, then regrows it; an alarm guards against hangs.
 - **Validation:** PR #10 head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` passed all five required gates plus GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941); merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`. Post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five required gates at 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST).
+
+
+## R-013 — Define and test shutdown interleavings
+
+- **Question:** What outcomes are valid when submit or resize races with pool shutdown?
+- **Repository-specific evidence:** Submission checks the shutdown flag before queue insertion; a submit racing immediate shutdown can be rejected with NULL or return a future whose queued task is subsequently failed with `TASKFORGE_ERR_SHUTDOWN`. Resize and shutdown serialize through `resize_mutex`; a resize already in progress may finish, while a later resize should return `TASKFORGE_ERR_SHUTDOWN`.
+- **Decision:** Keep pool destruction outside the concurrency contract: all API caller threads must be quiescent before destroy. Document immediate-shutdown future outcomes and exercise them with regression tests rather than promise that a concurrent destroy is safe.
+- **Regression:** `tests/test_lifecycle_races.c` races 500 submissions with immediate shutdown and verifies terminal futures and exactly-once argument disposal; it also races resize requests with graceful shutdown and rejects undocumented status codes.
+- **Validation:** Candidate branch `fix/lifecycle-race-coverage-2026-10-10`; exact-head CI pending.
