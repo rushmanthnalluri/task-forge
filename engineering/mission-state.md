@@ -12,6 +12,8 @@
 - PR #18 exact head `d0255c3192dcf4e4782fae3ffa47ebdeec551d61` passed all five required gates plus GitGuardian in [run 38014763502](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014763502); merged as `022f3430da6ddb969b4d9c0fa0c92abae6749a6d`. Post-merge [run 38014822336](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014822336) passed all five gates at `2026-10-10T01:52:43Z`.
 - Earlier PR #17 head `9d55ecfd5e2992356a5b25ba9b2bd99a7ebe79b1` failed Build/tests/CLI and ASan/UBSan because cleanup assertions ran before asynchronous cleanup completed; this was fixed on the final head. Run 38014594307 on the intermediate head was cancelled during branch advancement and is not a pass.
 
+- Duplicate PR #12 was closed as superseded after its exact-head CI passed; it was not merged because it conflicted with the newer engineering-record reconciliation, and its branch was not deleted.
+
 ## Verified latest behavior
 
 - Cancellation race: 200 trials observed 123 cancellation wins and 77 task executions; immediate-shutdown race reached terminal state and exactly-once disposal. ASan/UBSan, TSan, Valgrind, build/tests/CLI, soak, and GitGuardian all passed on PR #17's final head.
