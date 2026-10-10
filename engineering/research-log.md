@@ -84,7 +84,7 @@
 - **Question:** How can the queue preserve a blocking public contract while work-stealing workers periodically wake to inspect local deques?
 - **Repository-specific evidence:** `queue_pop` used a 50 ms timed wait and returned false on timeout. The worker loop relied on this polling behavior, but the public header described a blocking pop.
 - **Decision:** Implement true blocking `queue_pop` and add `queue_pop_timeout` for worker polling. Only the work-stealing worker path uses the timed variant; global-queue-only workers remain blocked until work or shutdown.
-- **Validation:** Regression tests cover timed idle return, blocking beyond 50 ms until a task is pushed, and release of a blocked pop during graceful shutdown. All five gates passed on PR #8 head `3e3ebe6918d92ced72b0ea7914523bfd508b651c` in [run 37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175); this documentation refresh requires revalidation.
+- **Validation:** Regression tests cover timed idle return, blocking beyond 50 ms until a task is pushed, and release of a blocked pop during graceful shutdown. All five gates passed on PR #8 head `3e3ebe6918d92ced72b0ea7914523bfd508b651c` in [run 37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175), and the later post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
 
 ## R-011 — Fail visibly when the benchmark CSV artifact cannot be written
