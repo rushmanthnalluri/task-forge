@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define TASKFORGE_IPC_STOP_COMMAND "__taskforge_stop__"
+
 static int write_all(int fd, const void* data, size_t len) {
     const char* p = data;
     while (len) {
@@ -121,6 +123,7 @@ int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* ha
     for (size_t i = 0; i < count; i++) {
         if (!handlers[i].name || !*handlers[i].name || !handlers[i].handler ||
             strlen(handlers[i].name) >= TASKFORGE_IPC_MAX_NAME ||
+            strcmp(handlers[i].name, TASKFORGE_IPC_STOP_COMMAND) == 0 ||
             strpbrk(handlers[i].name, " \t\r\n") != NULL) return -1;
     }
     /* Never unlink a caller-supplied path: it may be a regular file or
@@ -162,6 +165,17 @@ int taskforge_ipc_server_run(const char* path, const taskforge_ipc_handler_t* ha
             const char* arg = line + consumed + 1;
             size_t arglen = strlen(arg);
             if (arglen <= TASKFORGE_IPC_MAX_PAYLOAD) {
+                if (strcmp(name, TASKFORGE_IPC_STOP_COMMAND) == 0) {
+                    if (arglen == 0) {
+                        /* The control request is not a user handler and does not
+                         * count against max_requests. The server owns path cleanup. */
+                        (void)write_response(client, 1, 0, "", 0);
+                        close(client);
+                        break;
+                    }
+                    (void)write_response(client, 0, TASKFORGE_ERR_INVALID, "", 0);
+                    goto served_request;
+                }
                 for (size_t i = 0; i < count; i++) {
                     if (handlers[i].name && handlers[i].handler &&
                         strcmp(name, handlers[i].name) == 0) {
@@ -190,11 +204,87 @@ served_request:
     return 0;
 }
 
+static int wait_for_socket_release(const char* path, const struct stat* expected,
+                                    uint32_t timeout_ms) {
+    struct timespec deadline;
+    if (deadline_after(timeout_ms, &deadline) != 0) return -1;
+    for (;;) {
+        struct stat current;
+        if (lstat(path, &current) != 0) return errno == ENOENT ? 0 : -1;
+        /* Never remove or wait on a replacement socket owned by another server. */
+        if (!S_ISSOCK(current.st_mode) || current.st_dev != expected->st_dev ||
+            current.st_ino != expected->st_ino) return 0;
+
+        struct timespec now;
+        if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) return -1;
+        if (now.tv_sec > deadline.tv_sec ||
+            (now.tv_sec == deadline.tv_sec && now.tv_nsec >= deadline.tv_nsec)) return -1;
+        struct timespec pause = {0, 1000000L};
+        (void)nanosleep(&pause, NULL);
+    }
+}
+
 int taskforge_ipc_server_stop(const char* path) {
-    if (!path || !*path) return -1;
+    if (!path || !*path ||
+        strlen(path) >= sizeof(((struct sockaddr_un*)0)->sun_path)) return -1;
+
+    struct stat expected;
+    if (lstat(path, &expected) != 0 || !S_ISSOCK(expected.st_mode)) return -1;
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
+    struct sockaddr_un addr = {0};
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
+    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
+        close(fd);
+        return -1;
+    }
+
+    /* The pathname may have been replaced between lstat and connect. Do not
+     * send a stop request unless it still identifies the socket we inspected. */
     struct stat current;
-    if (lstat(path, &current) != 0 || !S_ISSOCK(current.st_mode)) return -1;
-    return unlink(path);
+    if (lstat(path, &current) != 0 || !S_ISSOCK(current.st_mode) ||
+        current.st_dev != expected.st_dev || current.st_ino != expected.st_ino) {
+        close(fd);
+        return -1;
+    }
+
+    char request[128];
+    int request_len = snprintf(request, sizeof(request), "%u %s \n",
+                               TASKFORGE_IPC_VERSION, TASKFORGE_IPC_STOP_COMMAND);
+    if (request_len < 0 || (size_t)request_len >= sizeof(request) ||
+        write_all(fd, request, (size_t)request_len) != 0) {
+        close(fd);
+        return -1;
+    }
+
+    /* A server may be finishing an already accepted client (whose read timeout
+     * is 30 seconds) before it can process this control request. */
+    struct timespec deadline;
+    if (deadline_after(35000, &deadline) != 0) {
+        close(fd);
+        return -1;
+    }
+    char header[128];
+    int rc = read_line_until(fd, header, sizeof(header), &deadline);
+    unsigned version = 0, ok = 0;
+    int error = 0, consumed = 0;
+    size_t length = 0;
+    if (rc != 0 ||
+        sscanf(header, "%u %u %d %zu %n", &version, &ok, &error, &length, &consumed) != 4 ||
+        consumed <= 0 || header[consumed] != '\0' ||
+        version != TASKFORGE_IPC_VERSION || ok != 1 || error != 0 || length != 0) {
+        close(fd);
+        return -1;
+    }
+    char delimiter = '\0';
+    rc = read_exact_until(fd, &delimiter, 1, &deadline);
+    close(fd);
+    if (rc != 0 || delimiter != '\n') return -1;
+
+    /* The server, not this client, unlinks its bound socket inode. */
+    return wait_for_socket_release(path, &expected, 5000);
 }
 
 int taskforge_ipc_client_call(const char* path, const char* name, const char* arg, size_t len,
