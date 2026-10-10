@@ -1,38 +1,37 @@
 # Verification report
 
-**Latest verified CI completion:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST)  
+**Latest verified main CI:** 2026-10-10T01:46:17Z (2026-10-10 07:16:17 IST)  
 **Mission deadline:** 2026-10-10 12:50 IST  
-**Current main:** `d34b9de4546772e99928798def5f5c2d502fa291`  
-**Post-merge evidence:** [GitHub Actions run 38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) — completed successfully on the exact current main SHA.
+**Current main:** `a4d0d38bc12176df706af0fb7d9c2d8dfaa536a6`  
+**Post-merge evidence:** [GitHub Actions run 38014410578](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014410578) — all five gates passed on exact current main SHA `a4d0d38bc12176df706af0fb7d9c2d8dfaa536a6`.
 
-## Latest main verification — d34b9de4546772e99928798def5f5c2d502fa291
+## Latest main verification — a4d0d38bc12176df706af0fb7d9c2d8dfaa536a6
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build, full tests, and CLI | **PASS** | [Run 38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) |
-| AddressSanitizer and UBSan | **PASS** | [Run 38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) |
-| ThreadSanitizer | **PASS** | [Run 38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) |
-| Valgrind Memcheck | **PASS** | [Run 38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) |
-| One-million-task soak | **PASS** | [Run 38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) |
+| Build, full tests, and CLI | **PASS** | [Run 38014410578](https://github.com/rushmanthalluri/task-forge/actions/runs/38014410578) |
+| AddressSanitizer and UBSan | **PASS** | [Run 38014410578](https://github.com/rushmanthalluri/task-forge/actions/runs/38014410578) |
+| ThreadSanitizer | **PASS** | [Run 38014410578](https://github.com/rushmanthalluri/task-forge/actions/runs/38014410578) |
+| Valgrind Memcheck | **PASS** | [Run 38014410578](https://github.com/rushmanthalluri/task-forge/actions/runs/38014410578) |
+| One-million-task soak | **PASS** | [Run 38014410578](https://github.com/rushmanthalluri/task-forge/actions/runs/38014410578) |
 
-## PR #14 exact-head verification
+## Recent merged verification
 
-- Head `847e517c0ba8db8baa652b08f8cf73ed9eb98732`; merged at `2026-10-10T01:43:06Z` as `d34b9de4546772e99928798def5f5c2d502fa291`.
-- [Run 38014144625](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014144625) completed successfully at `2026-10-10T01:42:50Z` and passed all five required gates plus GitGuardian.
-- Build/tests/CLI: **PASS**; ASan/UBSan: **PASS**; TSan: **PASS**; Valgrind Memcheck: **PASS**; one-million-task soak: **PASS**; GitGuardian: **PASS**.
-- The build log reports `[PASS] concurrent resize/shutdown serializes without invalid statuses` and `ALL DISCOVERED TESTS PASSED`.
+- PR #13 submit/shutdown regression: exact-head run 38013820528 and post-merge main run 38013881871 passed all five gates.
+- PR #14 resize/shutdown regression: exact-head run 38014144625 and post-merge main run 38014250608 passed all five gates.
+- PR #16 engineering-record reconciliation: exact-head run 38014353225 and post-merge main run 38014410578 passed all five gates.
 
-## Related lifecycle verification
+## Current candidate — future cancellation transition
 
-- PR #13 submit/shutdown race head `ad5dc7a6e9af5d538dba893f1bef86ca46d0d147` passed all five gates plus GitGuardian in [run 38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528); merged as `08e67833e01695ea92dedd85a8a0644c74bfe320`. Post-merge run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five gates.
-- PR #15 documentation reconciliation passed all five gates plus GitGuardian in [run 38013993307](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013993307); merged as `ff5c9026d8f8d83fee1edf068719b2a79966d43e`. Post-merge run [38014065695](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014065695) passed all five gates.
+- Branch `test/future-cancel-transition-2026-10-10`, test commit `54e9429a0177bacb6632fb73ceeca98e2dc63a39`.
+- The new test verifies cancellation rejection after RUNNING, exactly one execution, no cleanup callback for executed work, and exactly-once argument disposal.
+- Existing tests cover cancellation before dequeue and queued cleanup; PR #13 covers immediate-shutdown cleanup.
+- Exact-head CI for this candidate: **PENDING**. No local build/test commands were run.
 
-## Remaining unverified items and limitations
+## Remaining checks and limitations
 
-- No local checkout was available; no local build/test/static-analysis commands were run.
-- Cancellation-transition race coverage remains open.
-- `tests/test_map.c` emits pre-existing implicit-declaration warnings for `pthread_create` and `pthread_join`; include `<pthread.h>` in a focused follow-up.
-- Static analysis, dependency vulnerability alerts, secret scanning outside GitGuardian, non-Ubuntu compatibility, and license selection remain unverified or owner-blocked.
-- CI success covers only the configured Ubuntu jobs and does not prove absence of all defects.
-
-**Documentation revision status:** The five records are being refreshed on a documentation-only branch based on `d34b9de4546772e99928798def5f5c2d502fa291`. This revision itself is not yet CI-verified; do not merge until the exact latest PR head passes the required gates.
+- No local checkout was available; no local build, test, or static-analysis commands were run.
+- Static analysis, dependency vulnerability alerts, secret scanning beyond GitGuardian, and non-Ubuntu compatibility remain unverified.
+- No license is declared; owner authorization is required before adding one.
+- Parser property/fuzz tests, logger I/O failure behavior, full CLI/signal review, and implicit pthread declarations in `tests/test_map.c` remain follow-ups.
+- CI success proves only the configured jobs and Ubuntu environment exercised; it is not proof of absence of all defects.

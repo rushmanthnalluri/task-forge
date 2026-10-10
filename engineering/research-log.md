@@ -1,6 +1,6 @@
 # Research log
 
-**Latest verified CI completion:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST)
+**Latest verified CI completion:** 2026-10-10T01:46:17Z (2026-10-10 07:16:17 IST)
 
 ## R-001 — POSIX thread lifecycle and lock ordering
 - **Question:** Can a pool resize hold a mutex while joining a worker whose callback may call back into the pool?
@@ -119,3 +119,12 @@
 - **Repository-specific evidence:** `taskforge_pool_resize` and `taskforge_pool_shutdown` serialize through `resize_mutex`; resize requests after shutdown begins should return `TASKFORGE_ERR_SHUTDOWN`, while a resize already in progress may complete.
 - **Regression:** PR #14 adds `tests/test_lifecycle_races.c`, repeatedly cycles worker counts from 1 to 4 while the main thread begins graceful shutdown. It accepts only `TASKFORGE_OK`/`TASKFORGE_ERR_SHUTDOWN`, requires at least ten resize attempts, uses a 15-second alarm, and joins the resizer before pool destruction.
 - **Validation:** Exact-head run [38014144625](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014144625) passed all five required gates plus GitGuardian; test log explicitly reports concurrent resize/shutdown PASS. Merged as `d34b9de4546772e99928798def5f5c2d502fa291`; post-merge main run [38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) passed all five gates at 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST).
+
+
+## R-015 — Cancellation after transition to RUNNING
+
+- **Question:** Is cancellation rejected once the worker has claimed a task and entered its callback?
+- **Repository-specific evidence:** `taskforge_future_cancel` only changes a future from PENDING to CANCELLED. The worker calls `future_mark_running` before invoking the callback, so once the callback signals it has started, cancellation should return false.
+- **Regression:** `tests/test_future_cancel_transition.c` blocks inside the running callback, asserts the future is RUNNING and cancellation is rejected, then releases it and checks COMPLETED state, exactly one execution, no cleanup callback, and one argument disposal.
+- **Related coverage:** Existing `tests/test_futures.c` covers cancel-before-dequeue and cleanup of canceled queued arguments; PR #13 covers immediate-shutdown cleanup with exactly-once argument disposal.
+- **Validation:** Candidate branch `test/future-cancel-transition-2026-10-10`, test commit `54e9429a0177bacb6632fb73ceeca98e2dc63a39`; exact-head CI pending.

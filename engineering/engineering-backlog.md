@@ -1,6 +1,6 @@
 # Engineering backlog
 
-**Latest verified CI completion:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST)  
+**Latest verified CI completion:** 2026-10-10T01:46:17Z (2026-10-10 07:16:17 IST)  
 **Deadline:** 2026-10-10 12:50 IST  
 **Latest green main head:** `d34b9de4546772e99928798def5f5c2d502fa291`; post-merge run [38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) passed all five gates.  
 **Queue-pop fix:** PR #8 merged; all five gates passed on its exact head and subsequent main CI passed. **Benchmark CSV fix:** PR #9 merged; exact-head and post-merge CI passed.
@@ -23,7 +23,7 @@ Status values: **Done** means implemented and verified at the cited revision; **
 - [x] **MAP-2: Preserve per-item reports when a later submission fails.** Drain prior futures and populate their actual status, error, and result. Regression uses a one-worker/capacity-one pool with concurrent immediate shutdown.
 - [x] **MAP-3: Enforce timeout semantics for inline/nested map calls.** Worker-inline execution checks the monotonic deadline between callbacks, preserves completed results, and reports unstarted items as canceled. Regression verified by all five gates in run [37966033793](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966033793).
 - [x] **QUEUE-2: Make `queue_pop` semantics match its contract.** `queue_pop` blocks until work or shutdown; work-stealing workers use `queue_pop_timeout` for polling. Regression tests cover idle timeout, blocking wake-on-push, and shutdown wakeup. All five gates passed on PR #8 head `3e3ebe69` in [run 37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175).
-- [ ] **FUTURE-1: Expand cancellation race tests.** Cover cancellation before dequeue, the transition to RUNNING, and immediate shutdown with exactly-once cleanup.
+- [ ] **FUTURE-1: Expand cancellation race tests.** Existing coverage handles cancellation before dequeue and immediate shutdown; candidate `tests/test_future_cancel_transition.c` adds deterministic cancellation rejection after RUNNING and exactly-once execution/disposal checks. Branch `test/future-cancel-transition-2026-10-10`, test commit `54e9429a0177bacb6632fb73ceeca98e2dc63a39`; exact-head CI pending.
 - [ ] **PARSER-1: Add parser property/fuzz coverage.** Malformed, huge, and boundary-valued specs must fail safely without integer overflow or unbounded unexpected allocation.
 - [ ] **LOG-1: Review logger I/O failure behavior.** Define what happens when write/flush fails and ensure logging failures cannot corrupt pool lifecycle.
 - [ ] **CLI-1: Finish review of all commands and signal/shutdown paths.** Verify documented commands, invalid/oversized input handling, and interrupt behavior.

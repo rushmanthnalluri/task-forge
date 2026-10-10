@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Latest verified CI completion:** 2026-10-10T01:43:51Z (2026-10-10 07:13:51 IST)  
+**Latest verified CI completion:** 2026-10-10T01:46:17Z (2026-10-10 07:16:17 IST)  
 **Baseline branch:** `main`  
-**Latest verified main commit:** `d34b9de4546772e99928798def5f5c2d502fa291`  
+**Latest verified main commit:** `a4d0d38bc12176df706af0fb7d9c2d8dfaa536a6`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -145,6 +145,13 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Required regression test:** Run with an unwritable output directory and verify the process does not claim successful CSV output.
 - **Status:** Fixed and merged via PR #9 at head `1483a9bc3831d90e06ce768e060f48a6fbb881cd`; PR CI run [37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851) passed all five gates. Post-merge main CI [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 
+### TF-FUTURE-001 — Cancellation after transition to RUNNING
+
+- **Component:** `src/future.c`, `tests/test_futures.c`, `tests/test_future_cancel_transition.c`
+- **Evidence:** Existing tests cover cancellation while queued, cleanup of canceled queued arguments, and immediate-shutdown cleanup. The transition boundary after a worker marks a future RUNNING lacked a deterministic regression.
+- **Risk:** A future change could allow cancellation of executing work or incorrectly invoke the queued-task cleanup callback after execution starts.
+- **Regression added:** The new test blocks inside a callback after it is RUNNING, asserts cancellation returns false, then releases it and checks completion, one execution, zero cleanup calls, and exactly-once argument disposal.
+- **Status:** Candidate branch `test/future-cancel-transition-2026-10-10`, test commit `54e9429a0177bacb6632fb73ceeca98e2dc63a39`; exact-head CI pending.
 ## Subsystem coverage ledger
 
 | Area | Reviewed | Remaining work |
@@ -187,7 +194,14 @@ GitHub Actions run [37963052958](https://github.com/rushmanthnalluri/task-forge/
 
 ## Mission update — resize/shutdown interleaving
 
-- **Current main:** `d34b9de4546772e99928798def5f5c2d502fa291`; post-merge [run 38014250608](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014250608) completed successfully at `2026-10-10T01:43:51Z`, all five required gates passed.
+- **Current main:** `a4d0d38bc12176df706af0fb7d9c2d8dfaa536a6`; post-merge [run 38014410578](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014410578) completed successfully at `2026-10-10T01:46:17Z`, all five required gates passed.
 - **PR #14:** [Concurrent resize/shutdown regression](https://github.com/rushmanthnalluri/task-forge/pull/14), exact head `847e517c0ba8db8baa652b08f8cf73ed9eb98732`, merged at `2026-10-10T01:43:06Z` as `d34b9de4546772e99928798def5f5c2d502fa291`. Exact-head run [38014144625](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014144625) passed all five required gates plus GitGuardian.
 - **TF-LIFECYCLE-002 — Resize/shutdown race coverage:** `tests/test_lifecycle_races.c` keeps a resizer cycling target worker counts while graceful shutdown starts. It accepts only `TASKFORGE_OK` or `TASKFORGE_ERR_SHUTDOWN`, requires multiple resize iterations, checks no unexpected status, uses a 15-second alarm, and joins the resizer before destroying the pool. CI logs show `[PASS] concurrent resize/shutdown serializes without invalid statuses` and `ALL DISCOVERED TESTS PASSED`.
 - **Residual risks:** cancellation transition races remain open; `tests/test_map.c` has pre-existing implicit declarations for `pthread_create` and `pthread_join` because it lacks `<pthread.h>`; no license is declared; static analysis, security/dependency alert scans beyond GitGuardian, and non-Ubuntu compatibility remain unverified. No local commands were run.
+
+
+## Mission update — 2026-10-10T01:46:17Z
+
+- PR #16 reconciled the resize/shutdown records and merged as `a4d0d38bc12176df706af0fb7d9c2d8dfaa536a6`; exact-head run [38014353225](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014353225) and post-merge main run [38014410578](https://github.com/rushmanthnalluri/task-forge/actions/runs/38014410578) passed all five gates.
+- Latest verified main is `a4d0d38bc12176df706af0fb7d9c2d8dfaa536a6`; latest post-merge main CI completed at `2026-10-10T01:46:17Z` with build/tests/CLI, ASan/UBSan, TSan, Valgrind, and one-million-task soak all passing.
+- New candidate `tests/test_future_cancel_transition.c` covers cancellation rejection after RUNNING; exact-head CI is pending.
