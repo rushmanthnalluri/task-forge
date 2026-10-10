@@ -17,8 +17,8 @@
 
 ## Recent PR and merge evidence
 
-- PR #9, benchmark CSV failure reporting: head `1483a9bc3831d90e06ce768e060f48a6fbb881cd`, [PR run 37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851), all five gates passed. Merged as `a4331f69082a0eb2564f2ec0e095e5672b8c0c81); post-merge run [38013353830](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013353830) passed all five gates.
-- PR #10, idle global-queue worker retirement during resize: head `ca06914d5fd0dbd65d9fcd659805c851c431a0da`, [PR run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941), all five gates passed. Merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28); post-merge run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates.
+- PR #9, benchmark CSV failure reporting: head `1483a9bc3831d90e06ce768e060f48a6fbb881cd`, [PR run 37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851), all five gates passed. Merged as `a4331f69082a0eb2564f2ec0e095e5672b8c0c81`; post-merge run [38013353830](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013353830) passed all five gates.
+- PR #10, idle global-queue worker retirement during resize: head `ca06914d5fd0dbd65d9fcd659805c851c431a0da`, [PR run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941), all five gates passed. Merged as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`; post-merge run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates.
 - The resize regression's Valgrind log explicitly showed `test_resize` and `test_resize_stress` passing, with zero Memcheck errors and no leaked heap blocks.
 - Latest open-PR listing returned no open PRs at the recorded time.
 
