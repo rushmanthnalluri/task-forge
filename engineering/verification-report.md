@@ -9,11 +9,11 @@
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build, full tests, and CLI | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
-| AddressSanitizer and UBSan | **PASS** | [Run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
-| ThreadSanitizer | **PASS** | [Run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
-| Valgrind Memcheck | **PASS** | [Run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
-| One-million-task soak | **PASS** | [Run 38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) |
+| Build, full tests, and CLI | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
+| AddressSanitizer and UBSan | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
+| ThreadSanitizer | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
+| Valgrind Memcheck | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
+| One-million-task soak | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
 
 ## PR #10 exact-head verification
 
@@ -35,7 +35,7 @@
 - Additional concurrent submit/shutdown/resize lifecycle coverage remains a priority.
 - CI success proves only the configured jobs and Ubuntu environment exercised; it is not proof of absence of all defects.
 
-**Documentation revision status:** The five records are being refreshed on a documentation-only branch based on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`. This documentation revision is not yet CI-verified; do not merge it until the exact latest PR head passes the required gates.
+**Documentation revision status:** The five records and lifecycle regression are being prepared together on `fix/lifecycle-race-coverage-2026-10-10`, based on main `e48ceca4187e8daf4395bccd97af3362901baa57`. This candidate is not yet CI-verified; do not merge until the exact latest PR head passes all required gates.
 
 
 ## Current candidate — lifecycle race coverage
