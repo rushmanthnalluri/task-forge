@@ -3,7 +3,7 @@
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
 **Latest verified CI completion:** 2026-10-10T01:31:55Z (2026-10-10 07:01:55 IST)  
 **Baseline branch:** `main`  
-**Latest verified main commit:** `e48ceca4187e8daf4395bccd97af3362901baa57`  
+**Latest verified main commit:** `08e67833e01695ea92dedd85a8a0644c74bfe320`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -34,14 +34,14 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Status:** Implemented on combined PR #5; CI run [37966656813](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966656813) passed all five gates on head `c2aff127140d1ff85f26973457d1d9a04ef71409`; the subsequent post-merge main run [38013479895](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013479895) passed all five gates on `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
 - **Commit:** `ce43a233a47d3ae9acf71b531b5257129764cb09`.
 
-### TF-LIFECYCLE-001 — Concurrent submit/shutdown and resize/shutdown coverage gap
+### TF-LIFECYCLE-001 — Concurrent resize/shutdown coverage gap
 
-- **Component:** `src/pool.c`, pool lifecycle API, and `tests/test_lifecycle_races.c`
+- **Component:** `src/pool.c`, `tests/test_lifecycle_races.c`
 - **Severity/confidence:** P2 / high-confidence test-coverage gap.
-- **Evidence:** Existing tests separately cover submission before/after shutdown, graceful drain, immediate queued-task cleanup, and resize concurrency, but do not force submission to race immediate shutdown or resize to race shutdown.
-- **Risk:** Future changes could strand a returned future, double-run argument cleanup, produce an unexpected resize status, or make shutdown/resize hang without a targeted interleaving regression.
-- **Coverage added:** Concurrent submit/immediate-shutdown test checks terminal future state/error and exactly-once argument disposal across 500 attempts. Concurrent resize/shutdown test checks only documented success/shutdown statuses. A 15-second alarm guards hangs. The test joins concurrent callers before pool destruction.
-- **Status:** Added on `fix/lifecycle-race-coverage-2026-10-10`; exact-head CI is pending.
+- **Evidence:** PR #13 now covers concurrent submission against graceful and immediate shutdown, including terminal futures and exactly-once argument disposal. Resize and shutdown are serialized through `resize_mutex`, but the existing tests did not force that interleaving.
+- **Risk:** A future change could cause resize/shutdown to hang or return an undocumented status during worker retirement.
+- **Coverage added:** `tests/test_lifecycle_races.c` keeps resize requests active while graceful shutdown starts, accepts only `TASKFORGE_OK` or `TASKFORGE_ERR_SHUTDOWN`, and joins the resizer before destruction. A 15-second alarm guards hangs.
+- **Status:** Candidate PR #14; the narrowed resize/shutdown-only revision requires a fresh exact-head CI run.
 
 ### TF-IPC-001 — IPC response framing, protocol checks, and read deadlines
 
@@ -183,4 +183,5 @@ GitHub Actions run [37963052958](https://github.com/rushmanthnalluri/task-forge/
 - **PR #10:** [Global-queue worker retirement fix](https://github.com/rushmanthnalluri/task-forge/pull/10) merged at `2026-10-10T01:31:03Z`; candidate head `ca06914d5fd0dbd65d9fcd659805c851c431a0da` passed all five required gates plus GitGuardian in [run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941).
 - **Latest post-merge main CI:** [run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) completed successfully at `2026-10-10T01:34:48Z`; build/tests/CLI, ASan/UBSan, TSan, Valgrind Memcheck, and one-million-task soak all passed on `e48ceca4187e8daf4395bccd97af3362901baa57`.
 - **TF-RESIZE-003 — Idle global-queue worker does not observe retirement:** fixed in PR #10. Global-queue workers now use internal timed pop polling so idle workers notice retirement; public `queue_pop` remains blocking. Regression in `tests/test_resize.c` shrinks an idle two-worker non-work-stealing pool to one and regrows it, with a 15-second alarm. Exact-head CI and post-merge CI passed.
-- **Residual risks:** lifecycle interleavings involving concurrent submission and shutdown need more coverage; the fixed spare-worker capacity remains bounded; no license is declared (owner decision required); static analysis, dependency/security-alert scans beyond GitGuardian, and non-Ubuntu/platform compatibility remain unverified. No local commands were run because no local checkout is available.
+- **PR #13:** concurrent submission vs graceful/immediate shutdown test merged at `2026-10-10T01:37:16Z`; exact-head run [38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) and post-merge run [38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) passed all five gates.
+- **Residual risks:** concurrent resize/shutdown interleavings remain under verification; the fixed spare-worker capacity remains bounded; no license is declared (owner decision required); static analysis, dependency/security-alert scans beyond GitGuardian, and non-Ubuntu/platform compatibility remain unverified. No local commands were run because no local checkout is available.

@@ -1,46 +1,36 @@
 # Verification report
 
-**Latest verified CI completion:** 2026-10-10T01:34:48Z (2026-10-10 07:04:48 IST)  
+**Latest verified CI completion:** 2026-10-10T01:37:57Z (2026-10-10 07:07:57 IST)  
 **Mission deadline:** 2026-10-10 12:50 IST  
-**Current main:** `e48ceca4187e8daf4395bccd97af3362901baa57`  
-**Post-merge evidence:** [GitHub Actions run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) — all five gates passed on exact current main SHA `e48ceca4187e8daf4395bccd97af3362901baa57`.
+**Current main:** `08e67833e01695ea92dedd85a8a0644c74bfe320`  
+**Post-merge evidence:** [GitHub Actions run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) — all five gates passed on exact current main SHA `08e67833e01695ea92dedd85a8a0644c74bfe320`.
 
-## Latest main verification — e48ceca4187e8daf4395bccd97af3362901baa57
+## Latest main verification — 08e67833e01695ea92dedd85a8a0644c74bfe320
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build, full tests, and CLI | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
-| AddressSanitizer and UBSan | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
-| ThreadSanitizer | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
-| Valgrind Memcheck | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
-| One-million-task soak | **PASS** | [Run 38013682260](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013682260) |
+| Build, full tests, and CLI | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
+| AddressSanitizer and UBSan | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
+| ThreadSanitizer | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
+| Valgrind Memcheck | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
+| One-million-task soak | **PASS** | [Run 38013881871](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013881871) |
 
-## PR #10 exact-head verification
+## Recent merged lifecycle coverage
 
-- Head: `ca06914d5fd0dbd65d9fcd659805c851c431a0da`; merged at `2026-10-10T01:31:03Z` as `98ac2418ffcd9a933da98c1aef8b8ff494c7fa28`.
-- [Run 38013414941](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013414941) completed successfully at `2026-10-10T01:30:53Z`.
-- Build/tests/CLI: **PASS**; ASan/UBSan: **PASS**; TSan: **PASS**; Valgrind Memcheck: **PASS**; one-million-task soak: **PASS**; GitGuardian Security Checks: **PASS**.
-- Regression in `tests/test_resize.c` verifies idle shrink/regrow in non-work-stealing global-queue mode, guarded by a 15-second alarm.
+- PR #13, concurrent submission vs graceful/immediate shutdown: head `ad5dc7a6e9af5d538dba893f1bef86ca46d0d147`; [run 38013820528](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013820528) passed all five gates. It verifies terminal futures and exactly-once argument disposal; merged as `08e67833e01695ea92dedd85a8a0644c74bfe320`.
+- PR #14's previous head `1479f675c35dafc9d54b725201356a65ae5dc2e5` passed all five gates in [run 38013902764](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013902764), but it duplicated PR #13's submission/shutdown test.
+- PR #14 is being narrowed to resize/shutdown interleaving coverage only. Its revised head has not yet been created/verified; the previous green run does not validate the revised head.
 
-## Earlier related merged work
+## Earlier verified work
 
-- PR #9 benchmark CSV failure handling: exact-head [run 37967278851](https://github.com/rushmanthnalluri/task-forge/actions/runs/37967278851) passed all five required gates; post-merge main CI [run 38013353830](https://github.com/rushmanthnalluri/task-forge/actions/runs/38013353830) passed all five gates on the then-current main.
-- PR #8 queue-pop contract and PR #7 inline-map timeout: each passed required PR gates and post-merge main CI, as documented in the audit and research records.
+- PR #9 benchmark CSV failure handling: exact-head run 37967278851 and post-merge main run 38013353830 passed all five required gates.
+- PR #10 idle global-queue worker retirement: exact-head run 38013414941 and post-merge main run 38013479895 passed all five required gates.
+- PR #11 engineering record reconciliation: exact-head run 38013637179 and post-merge main run 38013682260 passed all five required gates.
 
-## Remaining unverified items and limitations
+## Remaining checks and limitations
 
 - No local checkout was available; no local build, test, or static-analysis commands were run.
-- Static analysis (e.g. clang-tidy/cppcheck), dependency vulnerability alerts, secret scanning outside the GitGuardian workflow, and non-Ubuntu compatibility remain unverified.
+- Static analysis, dependency vulnerability alerts, secret scanning outside GitGuardian, and non-Ubuntu compatibility remain unverified.
 - No license is declared; owner authorization is required before adding one.
-- Additional concurrent submit/shutdown/resize lifecycle coverage remains a priority.
+- Additional cancellation-transition coverage remains a priority.
 - CI success proves only the configured jobs and Ubuntu environment exercised; it is not proof of absence of all defects.
-
-**Documentation revision status:** The five records and lifecycle regression are being prepared together on `fix/lifecycle-race-coverage-2026-10-10`, based on main `e48ceca4187e8daf4395bccd97af3362901baa57`. This candidate is not yet CI-verified; do not merge until the exact latest PR head passes all required gates.
-
-
-## Current candidate — lifecycle race coverage
-
-- Branch: `fix/lifecycle-race-coverage-2026-10-10` (PR not yet opened at the time of this record draft).
-- New test: `tests/test_lifecycle_races.c` exercises concurrent submit/immediate-shutdown and resize/shutdown, terminal future outcomes, and exactly-once argument disposal.
-- Public header now documents the racing-submit outcomes and the requirement to quiesce concurrent API callers before destroy.
-- Exact-head CI for this candidate: **PENDING**. No local build or test was run. Do not treat this as verified until all five required GitHub Actions gates pass on the exact PR head.
