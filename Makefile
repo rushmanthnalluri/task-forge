@@ -69,6 +69,8 @@ test: all
 		echo "Running $$test"; \
 		"$$test"; \
 	done
+	@echo "Running benchmark CSV failure-path regression..."
+	@bash tests/test_bench_output.sh
 	@echo "=========================================="
 	@echo "  ALL DISCOVERED TESTS PASSED"
 	@echo "=========================================="

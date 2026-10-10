@@ -1,9 +1,9 @@
 # TaskForge audit report
 
 **Mission deadline:** 2026-10-10 12:50 IST (UTC+05:30)  
-**Last confirmed execution time:** 2026-10-09 23:02 IST  
+**Last confirmed execution time:** 2026-10-09 23:04 IST  
 **Baseline branch:** `main`  
-**Baseline commit:** `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`  
+**Baseline commit:** `05da37cbfff65cd2967a8616eed6a31a1fffb613`  
 **Coverage status:** In progress; see subsystem ledger below.
 
 ## Scope and method
@@ -143,7 +143,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 - **Impact:** Automation and users may believe a benchmark artifact exists when it does not.
 - **Proposed remediation:** Return a nonzero status or clearly mark artifact output as skipped/failed when the CSV cannot be opened.
 - **Required regression test:** Run with an unwritable output directory and verify the process does not claim successful CSV output.
-- **Status:** Open.
+- **Status:** Implemented on `fix/benchmark-csv-error`; failure-path regression added to `make test`; CI pending.
 
 ## Subsystem coverage ledger
 
@@ -160,7 +160,7 @@ No dependency manifest or third-party package lockfile is present in the tracked
 | Logging | Source reviewed | I/O error propagation and performance implications |
 | Work stealing | Source reviewed | Model-based resize/shutdown interleavings |
 | Build / CI | Makefile and workflow reviewed | Add dedicated static-analysis/security checks where justified |
-| Docs / benchmarks / scripts | README, design, validation scripts and benchmark code inspected | Missing LICENSE requires owner decision; CSV false-success message and remaining command claims are open |
+| Docs / benchmarks / scripts | README, design, validation scripts and benchmark code inspected | CSV failure path now reports nonzero with regression coverage; missing LICENSE still requires owner decision |
 | Dependency/security inventory | No manifest/lockfile found | Run compiler/static analyzer and secret scan in an executable environment |
 
 ## Baseline verification evidence

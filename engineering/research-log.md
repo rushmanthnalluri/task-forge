@@ -85,3 +85,12 @@
 - **Repository-specific evidence:** `queue_pop` used a 50 ms timed wait and returned false on timeout. The worker loop relied on this polling behavior, but the public header described a blocking pop.
 - **Decision:** Implement true blocking `queue_pop` and add `queue_pop_timeout` for worker polling. Only the work-stealing worker path uses the timed variant; global-queue-only workers remain blocked until work or shutdown.
 - **Validation:** Regression tests cover timed idle return, blocking beyond 50 ms until a task is pushed, and release of a blocked pop during graceful shutdown. All five gates passed on PR #8 head `3e3ebe6918d92ced72b0ea7914523bfd508b651c` in [run 37966854175](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966854175); this documentation refresh requires revalidation.
+
+
+## R-011 — Fail visibly when the benchmark CSV artifact cannot be written
+
+- **Question:** Should the benchmark succeed if it completes work but cannot create its promised CSV output?
+- **Repository-specific evidence:** `bench_scaling.c` previously skipped CSV writes when `fopen` failed but still printed that the file had been saved and returned success.
+- **Decision:** Treat CSV creation, header/row writes, and close failures as benchmark failures. Keep the existing default output path and avoid adding a new dependency or CLI option.
+- **Regression:** `tests/test_bench_output.sh` runs the binary from a temporary directory without a `benchmarks/` folder and asserts a nonzero exit plus an actionable error. It is invoked by `make test`.
+- **Validation:** Regression added; CI pending on `fix/benchmark-csv-error`.

@@ -2,7 +2,7 @@
 
 **Updated:** 2026-10-09 22:59 IST  
 **Mission deadline:** 2026-10-10 12:50 IST  
-**Main:** `02feaf1dd269f77c1f0265155863f8f05ddeeb7f`  
+**Main:** `05da37cbfff65cd2967a8616eed6a31a1fffb613`  
 **Post-merge evidence:** [GitHub Actions run 37966256429](https://github.com/rushmanthnalluri/task-forge/actions/runs/37966256429) — all five gates passed on main.
 
 ## Latest main verification
