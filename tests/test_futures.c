@@ -193,5 +193,8 @@ int main(void) {
 
     taskforge_pool_destroy(pool);
     printf("[PASS] test_futures completed successfully!\n\n");
+    /* Ownership of rejected arguments is transferred to cleanup_arg; cppcheck
+     * cannot follow that callback contract across the submission API. */
+    // cppcheck-suppress memleak
     return 0;
 }

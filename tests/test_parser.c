@@ -87,7 +87,9 @@ int main(void) {
     assert(binary != NULL);
     const unsigned char binary_spec[] = "TASK 1 HIGH 0 0 1\0TASK 2 LOW 0 0 2\n";
     assert(fwrite(binary_spec, 1, sizeof(binary_spec) - 1, binary) == sizeof(binary_spec) - 1);
-    assert(fclose(binary) == 0);
+    int close_status = fclose(binary);
+    assert(close_status == 0);
+    (void)close_status;
     assert(workload_spec_parse_file(binary_path) == NULL);
     remove(binary_path);
 
