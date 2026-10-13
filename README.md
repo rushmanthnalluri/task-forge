@@ -1,6 +1,6 @@
 # TaskForge — Thread-Pool Task Engine
 > **A high-performance C11 asynchronous task engine with bounded queues, composable futures, work-stealing per-worker deques, and robust graceful shutdown.**
-  
+
 Built for Linux / POSIX systems using C11, `pthreads`, and C11 atomics.
 
 ---
@@ -255,4 +255,4 @@ Performance numbers are environment-dependent and must be regenerated on the tar
 - `taskforge_pool_destroy()` must not run concurrently with any other pool operation, including a shutdown call that another thread is still completing.
 - With work stealing enabled, priority ordering applies when selecting from the global priority queue. A task already moved into a worker-local deque may execute before a newly submitted higher-priority task.
 - Workload parser task IDs identify workload entries. The engine still assigns its own internal task IDs for futures/logging.
-- The CLI `bench <workers> <tasks>` command creates a dedicated benchmark pool using the requested worker count.
+- The CLI `bench <workers> <tasks>` command creates a dedicated benchmark pool using the requested worker  count.
